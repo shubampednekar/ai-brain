@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "vercel-build": "cd ../.. && rm -rf packages/database/dist packages/core/dist packages/database/tsconfig.tsbuildinfo packages/core/tsconfig.tsbuildinfo && pnpm exec tsc -b tsconfig.build.json",
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",

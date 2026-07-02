@@ -1,11 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createContainer } from '@ai-brain/core';
+import { verifyCronSecret } from '../lib/cron-auth.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const secret = req.headers['x-cron-secret'] ?? req.query.secret;
-  if (secret !== process.env.CRON_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  if (!verifyCronSecret(req, res)) return;
 
   const container = createContainer();
   await container.jobs.enqueue('reminder.send', {}, {

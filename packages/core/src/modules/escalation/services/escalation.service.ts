@@ -1,7 +1,6 @@
 import { EVENT_TYPES } from '../../../events/index.js';
 import type { ServiceContext } from '../../../shared/types.js';
 import { NotificationService } from '../../notifications/services/notification.service.js';
-import { SharedMemoryService } from '../../shared-memory/services/shared-memory.service.js';
 
 export interface EscalationRecord {
   id: string;
@@ -20,11 +19,29 @@ export interface EscalationRecord {
 
 export class EscalationService {
   private notifications: NotificationService;
-  private sharedMemory: SharedMemoryService;
 
   constructor(private readonly ctx: ServiceContext) {
     this.notifications = new NotificationService(ctx);
-    this.sharedMemory = new SharedMemoryService(ctx);
+  }
+
+  private async assertMember(workspaceId: string, userId: string): Promise<void> {
+    const { data: member } = await this.ctx.supabase
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (member) return;
+
+    const { data: workspace } = await this.ctx.supabase
+      .from('shared_workspaces')
+      .select('id')
+      .eq('id', workspaceId)
+      .eq('owner_id', userId)
+      .maybeSingle();
+
+    if (!workspace) throw new Error('Not a member of this workspace');
   }
 
   async create(input: {
@@ -62,7 +79,7 @@ export class EscalationService {
     if (error || !data) throw new Error('Escalation not found');
 
     if (data.asker_id !== userId && data.target_id !== userId) {
-      await this.sharedMemory.assertMember(data.workspace_id, userId);
+      await this.assertMember(data.workspace_id, userId);
     }
 
     const [{ data: workspace }, { data: asker }] = await Promise.all([

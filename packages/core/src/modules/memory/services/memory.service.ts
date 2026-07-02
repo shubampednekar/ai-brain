@@ -5,27 +5,26 @@ import { MemoryRepository } from '../repositories/memory.repository.js';
 import type { CreateMemoryInput, Memory, IntentClassification } from '../types.js';
 import { IntentClassifier } from '../../ai/services/intent-classifier.service.js';
 import { JobService } from '../../jobs/services/job.service.js';
-import { EscalationService } from '../../escalation/services/escalation.service.js';
 
 export class MemoryService {
   private memoryRepo: MemoryRepository;
   private intentClassifier: IntentClassifier;
   private jobService: JobService;
-  private escalations: EscalationService;
 
   constructor(private readonly ctx: ServiceContext) {
     this.memoryRepo = new MemoryRepository(ctx.supabase);
     this.intentClassifier = new IntentClassifier(ctx);
     this.jobService = new JobService(ctx);
-    this.escalations = new EscalationService(ctx);
   }
 
   async capture(input: CreateMemoryInput): Promise<Memory> {
     let workspaceId = input.workspaceId;
-    let escalationId = input.escalationId;
+    const escalationId = input.escalationId;
 
     if (escalationId) {
-      const escalation = await this.escalations.getById(escalationId, input.userId);
+      const { EscalationService } = await import('../../escalation/services/escalation.service.js');
+      const escalations = new EscalationService(this.ctx);
+      const escalation = await escalations.getById(escalationId, input.userId);
       workspaceId = escalation.workspaceId;
     }
 
@@ -58,7 +57,9 @@ export class MemoryService {
     });
 
     if (escalationId) {
-      await this.escalations.resolve(escalationId, input.userId, memory.id, input.text);
+      const { EscalationService } = await import('../../escalation/services/escalation.service.js');
+      const escalations = new EscalationService(this.ctx);
+      await escalations.resolve(escalationId, input.userId, memory.id, input.text);
     }
 
     await this.jobService.enqueue('embedding.generate', {

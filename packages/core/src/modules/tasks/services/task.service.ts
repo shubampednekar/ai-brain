@@ -37,28 +37,117 @@ export class TaskService {
     userId: string,
     options?: { workspaceId?: string; status?: string },
   ): Promise<TaskListItem[]> {
-    let query = this.ctx.supabase
-      .from('tasks')
-      .select('id, title, description, status, priority, due_at, workspace_id, assignee_id, memory_id, created_at')
-      .order('created_at', { ascending: false })
-      .limit(50);
+    const select =
+      'id, title, description, status, priority, due_at, workspace_id, assignee_id, memory_id, created_at';
+
+    let rows: Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      status: TaskListItem['status'];
+      priority: TaskListItem['priority'];
+      due_at: string | null;
+      workspace_id: string | null;
+      assignee_id: string | null;
+      memory_id: string | null;
+      created_at: string;
+    }> = [];
 
     if (options?.workspaceId) {
-      query = query.eq('workspace_id', options.workspaceId);
+      let query = this.ctx.supabase
+        .from('tasks')
+        .select(select)
+        .eq('workspace_id', options.workspaceId)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (options?.status) {
+        query = query.eq('status', options.status as 'pending');
+      }
+
+      const { data, error } = await query;
+      if (error) throw new Error(`Failed to list tasks: ${error.message}`);
+      rows = data ?? [];
     } else {
-      query = query
+      const workspaceIds = await this.getUserWorkspaceIds(userId);
+
+      let personalQuery = this.ctx.supabase
+        .from('tasks')
+        .select(select)
         .is('workspace_id', null)
-        .or(`user_id.eq.${userId},assignee_id.eq.${userId}`);
+        .or(`user_id.eq.${userId},assignee_id.eq.${userId}`)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (options?.status) {
+        personalQuery = personalQuery.eq('status', options.status as 'pending');
+      }
+
+      const queries = [personalQuery];
+
+      if (workspaceIds.length > 0) {
+        let workspaceQuery = this.ctx.supabase
+          .from('tasks')
+          .select(select)
+          .in('workspace_id', workspaceIds)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (options?.status) {
+          workspaceQuery = workspaceQuery.eq('status', options.status as 'pending');
+        }
+
+        queries.push(workspaceQuery);
+      }
+
+      const results = await Promise.all(queries.map((q) => q));
+      for (const result of results) {
+        if (result.error) throw new Error(`Failed to list tasks: ${result.error.message}`);
+        rows.push(...(result.data ?? []));
+      }
+
+      const seen = new Set<string>();
+      rows = rows
+        .filter((row) => {
+          if (seen.has(row.id)) return false;
+          seen.add(row.id);
+          return true;
+        })
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 50);
     }
 
-    if (options?.status) {
-      query = query.eq('status', options.status as 'pending');
-    }
+    return this.mapTaskRows(rows);
+  }
 
-    const { data, error } = await query;
-    if (error) throw new Error(`Failed to list tasks: ${error.message}`);
+  private async getUserWorkspaceIds(userId: string): Promise<string[]> {
+    const [{ data: memberships }, { data: owned }] = await Promise.all([
+      this.ctx.supabase.from('workspace_members').select('workspace_id').eq('user_id', userId),
+      this.ctx.supabase.from('shared_workspaces').select('id').eq('owner_id', userId),
+    ]);
 
-    const rows = data ?? [];
+    return [
+      ...new Set([
+        ...(memberships ?? []).map((m) => m.workspace_id),
+        ...(owned ?? []).map((w) => w.id),
+      ]),
+    ];
+  }
+
+  private async mapTaskRows(
+    rows: Array<{
+      id: string;
+      title: string;
+      description: string | null;
+      status: TaskListItem['status'];
+      priority: TaskListItem['priority'];
+      due_at: string | null;
+      workspace_id: string | null;
+      assignee_id: string | null;
+      memory_id: string | null;
+      created_at: string;
+    }>,
+  ): Promise<TaskListItem[]> {
     const workspaceIds = [...new Set(rows.map((r) => r.workspace_id).filter(Boolean))] as string[];
     const assigneeIds = [...new Set(rows.map((r) => r.assignee_id).filter(Boolean))] as string[];
 
@@ -108,8 +197,16 @@ export class TaskService {
       .single();
 
     if (fetchError || !task) throw new Error('Task not found');
-    if (task.user_id !== userId && task.assignee_id !== userId) {
-      throw new Error('Not authorized to update this task');
+
+    const isCreatorOrAssignee = task.user_id === userId || task.assignee_id === userId;
+    if (!isCreatorOrAssignee) {
+      if (!task.workspace_id) {
+        throw new Error('Not authorized to update this task');
+      }
+      const workspaceIds = await this.getUserWorkspaceIds(userId);
+      if (!workspaceIds.includes(task.workspace_id)) {
+        throw new Error('Not authorized to update this task');
+      }
     }
 
     const updates: {

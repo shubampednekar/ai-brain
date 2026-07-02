@@ -24,7 +24,7 @@ export function TasksPanel() {
   return (
     <PageLayout
       title="Tasks"
-      description="Action items extracted automatically from your captures."
+      description="Action items from your captures and shared workspaces."
       sidebarTitle="How it works"
       sidebar={
         <Card>
@@ -39,7 +39,7 @@ export function TasksPanel() {
           </CardHeader>
           <CardContent className="text-xs text-muted-foreground space-y-2">
             <p>Try: &ldquo;Task: ship the login fix by Friday&rdquo;</p>
-            <p>Workspace tasks also appear in the Shared tab.</p>
+            <p>Workspace tasks from teams you belong to appear here too.</p>
           </CardContent>
         </Card>
       }

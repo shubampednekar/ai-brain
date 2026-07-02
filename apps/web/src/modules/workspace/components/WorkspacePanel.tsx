@@ -290,6 +290,29 @@ export function WorkspacePanel() {
 
               <WorkspaceAsk workspaceId={selected.id} />
 
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <MessageSquarePlus className="h-4 w-4" />
+                    Add to workspace
+                  </CardTitle>
+                  <CardDescription>
+                    Capture a memory visible to everyone in this workspace.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <WorkspaceCapture
+                    workspaceId={selected.id}
+                    onCaptured={() => {
+                      setFeedKey((k) => k + 1);
+                      setActivityKey((k) => k + 1);
+                    }}
+                  />
+                </CardContent>
+              </Card>
+
+              <WorkspaceTasks workspaceId={selected.id} />
+
               <div>
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3 px-1">
                   Recent activity
@@ -297,35 +320,12 @@ export function WorkspacePanel() {
                 <WorkspaceActivityFeed key={activityKey} workspaceId={selected.id} />
               </div>
 
-              <WorkspaceTasks workspaceId={selected.id} />
-
-              <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-base flex items-center gap-2">
-                <MessageSquarePlus className="h-4 w-4" />
-                Add to workspace
-              </CardTitle>
-              <CardDescription>
-                Capture a memory visible to everyone in this workspace.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <WorkspaceCapture
-                workspaceId={selected.id}
-                onCaptured={() => {
-                  setFeedKey((k) => k + 1);
-                  setActivityKey((k) => k + 1);
-                }}
-              />
-            </CardContent>
-          </Card>
-
-          <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3 px-1">
-              Shared memories
-            </p>
-            <WorkspaceMemoryFeed key={feedKey} workspaceId={selected.id} />
-          </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3 px-1">
+                  Shared memories
+                </p>
+                <WorkspaceMemoryFeed key={feedKey} workspaceId={selected.id} />
+              </div>
         </>
       )}
     </PageLayout>

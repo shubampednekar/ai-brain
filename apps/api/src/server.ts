@@ -23,7 +23,11 @@ app.get('/health', (_req, res) => {
 
 app.post('/capture-memory', authMiddleware, async (req: AuthenticatedRequest, res) => {
   try {
-    const { text, workspaceId } = req.body as { text?: string; workspaceId?: string };
+    const { text, workspaceId, escalationId } = req.body as {
+      text?: string;
+      workspaceId?: string;
+      escalationId?: string;
+    };
     if (!text?.trim()) {
       res.status(400).json({ error: 'Text is required' });
       return;
@@ -33,7 +37,8 @@ app.post('/capture-memory', authMiddleware, async (req: AuthenticatedRequest, re
       text: text.trim(),
       userId: req.userId!,
       workspaceId,
-      visibility: workspaceId ? 'shared' : 'private',
+      visibility: workspaceId || escalationId ? 'shared' : 'private',
+      escalationId,
     });
 
     res.json({ memory });
@@ -102,6 +107,107 @@ app.get('/memories', authMiddleware, async (req: AuthenticatedRequest, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';
     res.status(500).json({ error: message });
+  }
+});
+
+app.get('/tasks', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const workspaceId = req.query.workspaceId as string | undefined;
+    if (workspaceId) {
+      await container.sharedMemory.assertMember(workspaceId, req.userId!);
+    }
+    const tasks = await container.tasks.listForUser(req.userId!, {
+      workspaceId: workspaceId ?? undefined,
+    });
+    res.json({ tasks });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(err instanceof Error && message.includes('Not a member') ? 403 : 500).json({
+      error: message,
+    });
+  }
+});
+
+app.patch('/tasks/:id', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const taskId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!taskId) {
+      res.status(400).json({ error: 'Task ID is required' });
+      return;
+    }
+
+    const { status } = req.body as { status?: 'pending' | 'in_progress' | 'completed' | 'cancelled' };
+    if (!status) {
+      res.status(400).json({ error: 'Status is required' });
+      return;
+    }
+
+    const task = await container.tasks.updateStatus(taskId, req.userId!, status);
+    res.json({ task });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(err instanceof Error && message.includes('Not authorized') ? 403 : 500).json({
+      error: message,
+    });
+  }
+});
+
+app.get('/reminders', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const status = req.query.status as 'scheduled' | 'sent' | 'cancelled' | 'failed' | undefined;
+    const reminders = await container.reminders.listForUser(req.userId!, { status });
+    res.json({ reminders });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.patch('/reminders/:id', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const reminderId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!reminderId) {
+      res.status(400).json({ error: 'Reminder ID is required' });
+      return;
+    }
+
+    const { status, scheduledAt } = req.body as {
+      status?: 'cancelled';
+      scheduledAt?: string;
+    };
+
+    let reminder;
+    if (status === 'cancelled') {
+      reminder = await container.reminders.cancel(reminderId, req.userId!);
+    } else if (scheduledAt) {
+      reminder = await container.reminders.snooze(reminderId, req.userId!, scheduledAt);
+    } else {
+      res.status(400).json({ error: 'status or scheduledAt is required' });
+      return;
+    }
+
+    res.json({ reminder });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(err instanceof Error && message.includes('Not authorized') ? 403 : 500).json({
+      error: message,
+    });
+  }
+});
+
+app.get('/escalations/:id', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const escalationId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!escalationId) {
+      res.status(400).json({ error: 'Escalation ID is required' });
+      return;
+    }
+
+    const escalation = await container.escalations.getById(escalationId, req.userId!);
+    res.json({ escalation });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(404).json({ error: message });
   }
 });
 
@@ -176,6 +282,48 @@ app.get('/workspaces/:id/memories', authMiddleware, async (req: AuthenticatedReq
       offset,
     );
     res.json({ memories });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(err instanceof Error && message.includes('Not a member') ? 403 : 500).json({
+      error: message,
+    });
+  }
+});
+
+app.get('/workspaces/:id/tasks', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const workspaceId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!workspaceId) {
+      res.status(400).json({ error: 'Workspace ID is required' });
+      return;
+    }
+
+    await container.sharedMemory.assertMember(workspaceId, req.userId!);
+    const tasks = await container.tasks.listForUser(req.userId!, { workspaceId });
+    res.json({ tasks });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(err instanceof Error && message.includes('Not a member') ? 403 : 500).json({
+      error: message,
+    });
+  }
+});
+
+app.get('/workspaces/:id/activity', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const workspaceId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!workspaceId) {
+      res.status(400).json({ error: 'Workspace ID is required' });
+      return;
+    }
+
+    const limit = parseInt(req.query.limit as string) || 30;
+    const activity = await container.activity.listWorkspaceActivity(
+      workspaceId,
+      req.userId!,
+      limit,
+    );
+    res.json({ activity });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';
     res.status(err instanceof Error && message.includes('Not a member') ? 403 : 500).json({

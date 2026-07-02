@@ -5,25 +5,36 @@ import { MemoryRepository } from '../repositories/memory.repository.js';
 import type { CreateMemoryInput, Memory, IntentClassification } from '../types.js';
 import { IntentClassifier } from '../../ai/services/intent-classifier.service.js';
 import { JobService } from '../../jobs/services/job.service.js';
+import { EscalationService } from '../../escalation/services/escalation.service.js';
 
 export class MemoryService {
   private memoryRepo: MemoryRepository;
   private intentClassifier: IntentClassifier;
   private jobService: JobService;
+  private escalations: EscalationService;
 
   constructor(private readonly ctx: ServiceContext) {
     this.memoryRepo = new MemoryRepository(ctx.supabase);
     this.intentClassifier = new IntentClassifier(ctx);
     this.jobService = new JobService(ctx);
+    this.escalations = new EscalationService(ctx);
   }
 
   async capture(input: CreateMemoryInput): Promise<Memory> {
+    let workspaceId = input.workspaceId;
+    let escalationId = input.escalationId;
+
+    if (escalationId) {
+      const escalation = await this.escalations.getById(escalationId, input.userId);
+      workspaceId = escalation.workspaceId;
+    }
+
     const classification = await this.intentClassifier.classify(input.text);
 
     const memory = await this.memoryRepo.create({
       user_id: input.userId,
-      workspace_id: input.workspaceId,
-      visibility: input.visibility ?? 'private',
+      workspace_id: workspaceId,
+      visibility: workspaceId ? 'shared' : (input.visibility ?? 'private'),
       original_text: input.text,
       summary: classification.summary,
       intent_slug: classification.intent,
@@ -41,10 +52,14 @@ export class MemoryService {
         intent: classification.intent,
         confidence: classification.confidence,
         summary: classification.summary,
-        workspaceId: input.workspaceId,
+        workspaceId,
       },
       idempotencyKey: generateIdempotencyKey('memory.created', memory.id),
     });
+
+    if (escalationId) {
+      await this.escalations.resolve(escalationId, input.userId, memory.id, input.text);
+    }
 
     await this.jobService.enqueue('embedding.generate', {
       memoryId: memory.id,
@@ -75,7 +90,7 @@ export class MemoryService {
         memoryId: memory.id,
         text: input.text,
         userId: input.userId,
-        workspaceId: input.workspaceId,
+        workspaceId,
       });
     }
 
@@ -84,7 +99,7 @@ export class MemoryService {
         memoryId: memory.id,
         text: input.text,
         userId: input.userId,
-        workspaceId: input.workspaceId,
+        workspaceId,
       });
     }
 
@@ -93,7 +108,7 @@ export class MemoryService {
         memoryId: memory.id,
         text: input.text,
         userId: input.userId,
-        workspaceId: input.workspaceId,
+        workspaceId,
       });
     }
 

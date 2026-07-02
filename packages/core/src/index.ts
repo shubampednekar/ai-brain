@@ -20,4 +20,6 @@ export * from './modules/approvals/index.js';
 export * from './modules/shared-memory/index.js';
 export * from './modules/conversation/index.js';
 export * from './modules/workspace-ask/index.js';
+export * from './modules/escalation/index.js';
+export * from './modules/activity/index.js';
 export * from './modules/jobs/services/job-processor.service.js';

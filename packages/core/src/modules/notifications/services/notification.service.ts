@@ -126,30 +126,77 @@ export class NotificationService {
       relatedTaskTitle?: string;
       contextFound: string;
       frontendUrl?: string;
+      escalationId?: string;
     },
   ): Promise<void> {
-    const workspaceLink = details.frontendUrl
-      ? `${details.frontendUrl.replace(/\/$/, '')}`
-      : 'your AI Brain app';
+    const baseUrl = details.frontendUrl?.replace(/\/$/, '') ?? '';
+    const answerLink =
+      baseUrl && details.escalationId
+        ? `${baseUrl}/answer?escalation=${encodeURIComponent(details.escalationId)}`
+        : baseUrl || 'your AI Brain app';
 
     const body = [
       `${details.askerName} asked a question in workspace "${details.workspaceName}" that needs your input.`,
-      details.relatedTaskTitle
-        ? `Related task: ${details.relatedTaskTitle}`
-        : '',
+      details.relatedTaskTitle ? `Related task: ${details.relatedTaskTitle}` : '',
       `Question: ${details.question}`,
       `AI attempted answer (confidence ${Math.round(details.confidence * 100)}%): ${details.aiAnswer}`,
       `Context from shared memories:\n${details.contextFound}`,
-      `Please add a shared memory or reply in the workspace so your teammate has a clear answer.`,
-      `Open: ${workspaceLink}`,
+      `Please add a shared memory to answer your teammate.`,
+      `Answer here: ${answerLink}`,
     ]
       .filter(Boolean)
       .join('\n\n');
 
+    const htmlAnswerLink =
+      baseUrl && details.escalationId
+        ? `<p><a href="${answerLink}" style="display:inline-block;padding:10px 16px;background:#6366f1;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Answer this question</a></p>
+           <p style="font-size:13px;color:#666;">Or open: <a href="${answerLink}">${answerLink}</a></p>`
+        : `<p>Open AI Brain to add a shared memory in the workspace.</p>`;
+
+    const { data: profile } = await this.ctx.supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', targetUserId)
+      .single();
+
+    if (profile?.email) {
+      await this.sendEmail({
+        to: profile.email,
+        subject: `Clarification needed in ${details.workspaceName}`,
+        html: `<div style="font-family:sans-serif;max-width:520px;">
+          <p>${details.askerName} asked a question in workspace <strong>${details.workspaceName}</strong> that needs your input.</p>
+          ${details.relatedTaskTitle ? `<p>Related task: <strong>${details.relatedTaskTitle}</strong></p>` : ''}
+          <p><strong>Question:</strong> ${details.question}</p>
+          <p><strong>AI attempted answer</strong> (confidence ${Math.round(details.confidence * 100)}%): ${details.aiAnswer}</p>
+          <p><strong>Context from shared memories:</strong><br/>${details.contextFound.replace(/\n/g, '<br/>')}</p>
+          ${htmlAnswerLink}
+        </div>`,
+        text: body,
+      });
+    }
+  }
+
+  async sendEscalationResolvedEmail(
+    askerId: string,
+    details: {
+      workspaceName: string;
+      resolverName: string;
+      question: string;
+      answer: string;
+      frontendUrl?: string;
+    },
+  ): Promise<void> {
+    const link = details.frontendUrl ? `${details.frontendUrl.replace(/\/$/, '')}` : 'AI Brain';
+
     await this.notifyUser(
-      targetUserId,
-      `Clarification needed in ${details.workspaceName}`,
-      body,
+      askerId,
+      `Your question was answered in ${details.workspaceName}`,
+      [
+        `${details.resolverName} clarified your question in workspace "${details.workspaceName}".`,
+        `Your question: ${details.question}`,
+        `Their answer: ${details.answer}`,
+        `Open ${link} and use Ask this workspace to get an updated AI answer.`,
+      ].join('\n\n'),
     );
   }
 }

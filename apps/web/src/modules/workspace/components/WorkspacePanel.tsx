@@ -13,6 +13,8 @@ import { useWorkspaces } from '../hooks/useWorkspaces';
 import { WorkspaceCapture } from './WorkspaceCapture';
 import { WorkspaceMemoryFeed } from './WorkspaceMemoryFeed';
 import { WorkspaceAsk } from './WorkspaceAsk';
+import { WorkspaceActivityFeed } from './WorkspaceActivityFeed';
+import { WorkspaceTasks } from './WorkspaceTasks';
 import { PageLayout } from '@/shared/components/layout/PageLayout';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -43,6 +45,7 @@ export function WorkspacePanel() {
   const [inviting, setInviting] = useState(false);
   const [inviteMessage, setInviteMessage] = useState('');
   const [feedKey, setFeedKey] = useState(0);
+  const [activityKey, setActivityKey] = useState(0);
 
   const selected = workspaces.find((w) => w.id === selectedId) ?? workspaces[0] ?? null;
 
@@ -287,6 +290,15 @@ export function WorkspacePanel() {
 
               <WorkspaceAsk workspaceId={selected.id} />
 
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-3 px-1">
+                  Recent activity
+                </p>
+                <WorkspaceActivityFeed key={activityKey} workspaceId={selected.id} />
+              </div>
+
+              <WorkspaceTasks workspaceId={selected.id} />
+
               <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base flex items-center gap-2">
@@ -300,7 +312,10 @@ export function WorkspacePanel() {
             <CardContent>
               <WorkspaceCapture
                 workspaceId={selected.id}
-                onCaptured={() => setFeedKey((k) => k + 1)}
+                onCaptured={() => {
+                  setFeedKey((k) => k + 1);
+                  setActivityKey((k) => k + 1);
+                }}
               />
             </CardContent>
           </Card>

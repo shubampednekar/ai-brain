@@ -9,6 +9,7 @@ export interface CreateMemoryInput {
   userId: string;
   workspaceId?: string;
   visibility?: 'private' | 'shared';
+  escalationId?: string;
 }
 
 export interface MemoryWithRelations extends Omit<Memory, 'metadata'> {

@@ -8,6 +8,10 @@ import { SearchService } from './modules/search/index.js';
 import { SharedMemoryService } from './modules/shared-memory/index.js';
 import { ConversationService } from './modules/conversation/index.js';
 import { WorkspaceAskService } from './modules/workspace-ask/index.js';
+import { EscalationService } from './modules/escalation/index.js';
+import { ActivityService } from './modules/activity/index.js';
+import { TaskService } from './modules/tasks/index.js';
+import { ReminderService } from './modules/reminder/index.js';
 import { JobProcessor } from './modules/jobs/services/job-processor.service.js';
 import { JobService } from './modules/jobs/index.js';
 
@@ -18,6 +22,10 @@ export class AppContainer {
   readonly sharedMemory: SharedMemoryService;
   readonly conversation: ConversationService;
   readonly workspaceAsk: WorkspaceAskService;
+  readonly escalations: EscalationService;
+  readonly activity: ActivityService;
+  readonly tasks: TaskService;
+  readonly reminders: ReminderService;
   readonly jobs: JobService;
   readonly jobProcessor: JobProcessor;
 
@@ -45,6 +53,10 @@ export class AppContainer {
     this.sharedMemory = new SharedMemoryService(this.ctx);
     this.conversation = new ConversationService(this.ctx);
     this.workspaceAsk = new WorkspaceAskService(this.ctx);
+    this.escalations = new EscalationService(this.ctx);
+    this.activity = new ActivityService(this.ctx);
+    this.tasks = new TaskService(this.ctx);
+    this.reminders = new ReminderService(this.ctx);
     this.jobs = new JobService(this.ctx);
     this.jobProcessor = new JobProcessor(this.ctx);
   }

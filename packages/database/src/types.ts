@@ -385,6 +385,36 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['workspace_invitations']['Insert']>;
         Relationships: [];
       };
+      workspace_question_escalations: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          asker_id: string;
+          target_id: string;
+          question: string;
+          ai_answer: string | null;
+          confidence: number | null;
+          status: 'open' | 'resolved';
+          resolved_memory_id: string | null;
+          resolved_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          asker_id: string;
+          target_id: string;
+          question: string;
+          ai_answer?: string | null;
+          confidence?: number | null;
+          status?: 'open' | 'resolved';
+          resolved_memory_id?: string | null;
+          resolved_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['workspace_question_escalations']['Insert']>;
+        Relationships: [];
+      };
       conversations: {
         Row: {
           id: string;

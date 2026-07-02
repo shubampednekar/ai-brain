@@ -3,6 +3,7 @@ import type { Database } from '@ai-brain/database';
 import { DEFAULT_MIN_COMBINED_SCORE } from '../../search/services/search.service.js';
 import type { ServiceContext } from '../../../shared/types.js';
 import { NotificationService } from '../../notifications/services/notification.service.js';
+import { EscalationService } from '../../escalation/services/escalation.service.js';
 import { SharedMemoryService } from '../../shared-memory/services/shared-memory.service.js';
 
 type WorkspaceMemoryRow =
@@ -33,10 +34,12 @@ const ESCALATION_CONFIDENCE_THRESHOLD = 0.7;
 export class WorkspaceAskService {
   private notifications: NotificationService;
   private sharedMemory: SharedMemoryService;
+  private escalations: EscalationService;
 
   constructor(private readonly ctx: ServiceContext) {
     this.notifications = new NotificationService(ctx);
     this.sharedMemory = new SharedMemoryService(ctx);
+    this.escalations = new EscalationService(ctx);
   }
 
   async searchWorkspace(
@@ -173,6 +176,15 @@ export class WorkspaceAskService {
         .map((s, i) => `${i + 1}. ${s.originalText}`)
         .join('\n');
 
+      const escalationId = await this.escalations.create({
+        workspaceId,
+        askerId: askerUserId,
+        targetId: escalationTargetId,
+        question,
+        aiAnswer: parsed.answer,
+        confidence: parsed.confidence,
+      });
+
       await this.notifications.sendWorkspaceQuestionEscalationEmail(escalationTargetId, {
         workspaceName: workspace?.name ?? 'workspace',
         askerName: asker?.full_name ?? asker?.email ?? 'A teammate',
@@ -182,6 +194,7 @@ export class WorkspaceAskService {
         relatedTaskTitle: relatedTask?.title,
         contextFound: sourceSummary || 'No relevant shared memories found.',
         frontendUrl: this.ctx.config.frontendUrl,
+        escalationId,
       });
 
       await this.ctx.eventBus.publish({
@@ -195,6 +208,7 @@ export class WorkspaceAskService {
           targetName: target?.full_name,
           confidence: parsed.confidence,
           relatedTaskId: relatedTask?.id,
+          escalationId,
         },
       });
     }

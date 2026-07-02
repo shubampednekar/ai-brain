@@ -3,6 +3,7 @@ import { useAuth } from './modules/auth/components/AuthProvider';
 import { LoginRoute } from './modules/auth/components/LoginRoute';
 import { Dashboard } from './modules/auth/components/Dashboard';
 import { AcceptInvitePage } from './modules/workspace/components/AcceptInvitePage';
+import { AnswerEscalationPage } from './modules/workspace/components/AnswerEscalationPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -51,6 +52,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <AcceptInvitePage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/answer"
+        element={
+          <ProtectedRoute>
+            <AnswerEscalationPage />
           </ProtectedRoute>
         }
       />

@@ -11,11 +11,168 @@ const TASK_PROMPT = `Extract task details from the text. Respond with JSON only:
   "assignee_hint": "<name or email hint or null>"
 }`;
 
+export interface TaskListItem {
+  id: string;
+  title: string;
+  description: string | null;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  dueAt: string | null;
+  workspaceId: string | null;
+  workspaceName: string | null;
+  assigneeId: string | null;
+  assigneeName: string | null;
+  memoryId: string | null;
+  createdAt: string;
+}
+
 export class TaskService {
   private notifications: NotificationService;
 
   constructor(private readonly ctx: ServiceContext) {
     this.notifications = new NotificationService(ctx);
+  }
+
+  async listForUser(
+    userId: string,
+    options?: { workspaceId?: string; status?: string },
+  ): Promise<TaskListItem[]> {
+    let query = this.ctx.supabase
+      .from('tasks')
+      .select('id, title, description, status, priority, due_at, workspace_id, assignee_id, memory_id, created_at')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (options?.workspaceId) {
+      query = query.eq('workspace_id', options.workspaceId);
+    } else {
+      query = query
+        .is('workspace_id', null)
+        .or(`user_id.eq.${userId},assignee_id.eq.${userId}`);
+    }
+
+    if (options?.status) {
+      query = query.eq('status', options.status as 'pending');
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(`Failed to list tasks: ${error.message}`);
+
+    const rows = data ?? [];
+    const workspaceIds = [...new Set(rows.map((r) => r.workspace_id).filter(Boolean))] as string[];
+    const assigneeIds = [...new Set(rows.map((r) => r.assignee_id).filter(Boolean))] as string[];
+
+    const workspaceMap = new Map<string, string>();
+    if (workspaceIds.length) {
+      const { data: workspaces } = await this.ctx.supabase
+        .from('shared_workspaces')
+        .select('id, name')
+        .in('id', workspaceIds);
+      for (const ws of workspaces ?? []) workspaceMap.set(ws.id, ws.name);
+    }
+
+    const profileMap = new Map<string, string>();
+    if (assigneeIds.length) {
+      const { data: profiles } = await this.ctx.supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', assigneeIds);
+      for (const p of profiles ?? []) profileMap.set(p.id, p.full_name ?? p.email);
+    }
+
+    return rows.map((row) => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      status: row.status,
+      priority: row.priority,
+      dueAt: row.due_at,
+      workspaceId: row.workspace_id,
+      workspaceName: row.workspace_id ? (workspaceMap.get(row.workspace_id) ?? null) : null,
+      assigneeId: row.assignee_id,
+      assigneeName: row.assignee_id ? (profileMap.get(row.assignee_id) ?? null) : null,
+      memoryId: row.memory_id,
+      createdAt: row.created_at,
+    }));
+  }
+
+  async updateStatus(
+    taskId: string,
+    userId: string,
+    status: 'pending' | 'in_progress' | 'completed' | 'cancelled',
+  ): Promise<TaskListItem> {
+    const { data: task, error: fetchError } = await this.ctx.supabase
+      .from('tasks')
+      .select('id, user_id, assignee_id, workspace_id')
+      .eq('id', taskId)
+      .single();
+
+    if (fetchError || !task) throw new Error('Task not found');
+    if (task.user_id !== userId && task.assignee_id !== userId) {
+      throw new Error('Not authorized to update this task');
+    }
+
+    const updates: {
+      status: typeof status;
+      completed_at: string | null;
+    } = {
+      status,
+      completed_at: status === 'completed' ? new Date().toISOString() : null,
+    };
+
+    const { data: updated, error } = await this.ctx.supabase
+      .from('tasks')
+      .update(updates)
+      .eq('id', taskId)
+      .select('id, title, description, status, priority, due_at, workspace_id, assignee_id, memory_id, created_at')
+      .single();
+
+    if (error) throw new Error(`Failed to update task: ${error.message}`);
+
+    if (status === 'completed') {
+      await this.ctx.eventBus.publish({
+        type: EVENT_TYPES.TASK_COMPLETED,
+        aggregateType: 'task',
+        aggregateId: taskId,
+        userId,
+        payload: { taskId, workspaceId: task.workspace_id },
+      });
+    }
+
+    let workspaceName: string | null = null;
+    if (updated.workspace_id) {
+      const { data: ws } = await this.ctx.supabase
+        .from('shared_workspaces')
+        .select('name')
+        .eq('id', updated.workspace_id)
+        .single();
+      workspaceName = ws?.name ?? null;
+    }
+
+    let assigneeName: string | null = null;
+    if (updated.assignee_id) {
+      const { data: profile } = await this.ctx.supabase
+        .from('profiles')
+        .select('full_name, email')
+        .eq('id', updated.assignee_id)
+        .single();
+      assigneeName = profile?.full_name ?? profile?.email ?? null;
+    }
+
+    return {
+      id: updated.id,
+      title: updated.title,
+      description: updated.description,
+      status: updated.status,
+      priority: updated.priority,
+      dueAt: updated.due_at,
+      workspaceId: updated.workspace_id,
+      workspaceName,
+      assigneeId: updated.assignee_id,
+      assigneeName,
+      memoryId: updated.memory_id,
+      createdAt: updated.created_at,
+    };
   }
 
   async extractFromMemory(

@@ -39,8 +39,8 @@ export function LoginPage({ redirect = '/' }: LoginPageProps) {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
+    <div className="relative z-10 flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-md border-primary/10 bg-card/90 backdrop-blur-md shadow-xl shadow-primary/5">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <Brain className="h-8 w-8 text-primary" />

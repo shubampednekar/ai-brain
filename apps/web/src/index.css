@@ -33,3 +33,52 @@
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 }
+
+@layer components {
+  .neural-bg-root {
+    @apply pointer-events-none fixed inset-0 z-0 overflow-hidden;
+  }
+
+  .neural-bg-canvas {
+    @apply absolute inset-0 h-full w-full opacity-100;
+  }
+
+  .neural-bg-glow {
+    @apply absolute rounded-full blur-3xl opacity-40;
+    animation: neural-drift 22s ease-in-out infinite;
+  }
+
+  .neural-bg-glow--a {
+    width: 48vmin;
+    height: 48vmin;
+    top: -8%;
+    left: -6%;
+    background: radial-gradient(circle, hsl(262 83% 58% / 0.55) 0%, transparent 68%);
+  }
+
+  .neural-bg-glow--b {
+    width: 42vmin;
+    height: 42vmin;
+    bottom: -10%;
+    right: -4%;
+    background: radial-gradient(circle, hsl(230 70% 55% / 0.45) 0%, transparent 68%);
+    animation-delay: -11s;
+    animation-duration: 26s;
+  }
+}
+
+@keyframes neural-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(3%, 2%) scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .neural-bg-glow {
+    animation: none;
+  }
+}

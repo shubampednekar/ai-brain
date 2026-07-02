@@ -87,10 +87,27 @@ export class SharedMemoryService {
       .eq('id', workspaceId)
       .single();
 
+    const workspaceName = workspace?.name ?? 'workspace';
+    const frontendUrl = this.ctx.config.frontendUrl?.replace(/\/$/, '');
+    const inviteLink = frontendUrl
+      ? `${frontendUrl}/invite?token=${encodeURIComponent(invitation.token)}`
+      : null;
+
+    const inviteInstructions = inviteLink
+      ? `<p><a href="${inviteLink}" style="display:inline-block;padding:10px 16px;background:#6366f1;color:#fff;text-decoration:none;border-radius:6px;font-weight:600;">Accept invitation</a></p>
+         <p style="font-size:13px;color:#666;">Or open this link: <a href="${inviteLink}">${inviteLink}</a></p>
+         <p style="font-size:13px;color:#666;">Token (manual fallback): <code>${invitation.token}</code></p>`
+      : `<p>Use token: <code>${invitation.token}</code> to accept at your AI Brain app's /invite page.</p>`;
+
     await this.notifications.sendEmail({
       to: email,
-      subject: `Invitation to join ${workspace?.name ?? 'workspace'} on AI Brain`,
-      html: `<p>You've been invited to collaborate on AI Brain.</p><p>Workspace: <strong>${workspace?.name}</strong></p><p>Use token: <code>${invitation.token}</code> to accept.</p>`,
+      subject: `Invitation to join ${workspaceName} on AI Brain`,
+      html: `<div style="font-family:sans-serif;max-width:520px;">
+        <p>You've been invited to collaborate on AI Brain.</p>
+        <p>Workspace: <strong>${workspaceName}</strong></p>
+        ${inviteInstructions}
+        <p style="font-size:12px;color:#888;margin-top:24px;">Sign in or create an account first, then accept the invite. Expires in 7 days.</p>
+      </div>`,
     });
 
     await this.ctx.eventBus.publish({

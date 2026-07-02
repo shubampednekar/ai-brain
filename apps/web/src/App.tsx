@@ -1,11 +1,12 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './modules/auth/components/AuthProvider';
-import { LoginPage } from './modules/auth/components/LoginPage';
+import { LoginRoute } from './modules/auth/components/LoginRoute';
 import { Dashboard } from './modules/auth/components/Dashboard';
 import { AcceptInvitePage } from './modules/workspace/components/AcceptInvitePage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -15,12 +16,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    const returnTo = `${location.pathname}${location.search}`;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(returnTo)}`} replace />;
+  }
+
   return <>{children}</>;
 }
 
 export default function App() {
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
 
   if (loading) {
     return (
@@ -32,7 +37,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/login" element={<LoginRoute />} />
       <Route
         path="/"
         element={

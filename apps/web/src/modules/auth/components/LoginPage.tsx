@@ -1,11 +1,17 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Brain, Github } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
 
-export function LoginPage() {
+interface LoginPageProps {
+  redirect?: string;
+}
+
+export function LoginPage({ redirect = '/' }: LoginPageProps) {
+  const navigate = useNavigate();
   const { signIn, signUp, signInWithOAuth } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,6 +30,7 @@ export function LoginPage() {
       } else {
         await signIn(email, password);
       }
+      navigate(redirect);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {

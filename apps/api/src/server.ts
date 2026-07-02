@@ -118,9 +118,11 @@ app.post('/workspaces/:id/invite', authMiddleware, async (req: AuthenticatedRequ
   }
 });
 
-app.listen(port, () => {
-  console.log(`[api] AI Brain API running on http://localhost:${port}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(port, () => {
+    console.log(`[api] AI Brain API running on http://localhost:${port}`);
+  });
+}
 
 export default app;
 

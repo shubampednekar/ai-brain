@@ -29,6 +29,26 @@ export class MemoryRepository {
     return data;
   }
 
+  async findByWorkspaceId(
+    workspaceId: string,
+    options: PaginationOptions = {},
+  ): Promise<Memory[]> {
+    const limit = options.limit ?? 20;
+    const offset = options.offset ?? 0;
+
+    const { data, error } = await this.supabase
+      .from('memories')
+      .select('*')
+      .eq('workspace_id', workspaceId)
+      .eq('visibility', 'shared')
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw new Error(`Failed to list workspace memories: ${error.message}`);
+    return data ?? [];
+  }
+
   async findByUserId(
     userId: string,
     options: PaginationOptions = {},

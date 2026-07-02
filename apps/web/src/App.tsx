@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './modules/auth/components/AuthProvider';
 import { LoginPage } from './modules/auth/components/LoginPage';
 import { Dashboard } from './modules/auth/components/Dashboard';
+import { AcceptInvitePage } from './modules/workspace/components/AcceptInvitePage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -37,6 +38,14 @@ export default function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/invite"
+        element={
+          <ProtectedRoute>
+            <AcceptInvitePage />
           </ProtectedRoute>
         }
       />

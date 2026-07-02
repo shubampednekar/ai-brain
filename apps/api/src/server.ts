@@ -105,6 +105,22 @@ app.get('/memories', authMiddleware, async (req: AuthenticatedRequest, res) => {
   }
 });
 
+app.get('/workspaces', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const memberships = await container.sharedMemory.listWorkspaces(req.userId!);
+    const workspaces = memberships
+      .filter((m) => m.shared_workspaces != null)
+      .map((m) => ({
+        ...(m.shared_workspaces as NonNullable<typeof m.shared_workspaces>),
+        role: m.role,
+      }));
+    res.json({ workspaces });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
 app.post('/workspaces', authMiddleware, async (req: AuthenticatedRequest, res) => {
   try {
     const { name, description } = req.body as { name?: string; description?: string };
@@ -122,6 +138,47 @@ app.post('/workspaces', authMiddleware, async (req: AuthenticatedRequest, res) =
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';
     res.status(500).json({ error: message });
+  }
+});
+
+app.post('/workspaces/accept', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { token } = req.body as { token?: string };
+    if (!token?.trim()) {
+      res.status(400).json({ error: 'Invitation token is required' });
+      return;
+    }
+
+    const workspace = await container.sharedMemory.acceptInvitation(token.trim(), req.userId!);
+    res.json({ workspace });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(400).json({ error: message });
+  }
+});
+
+app.get('/workspaces/:id/memories', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const workspaceId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!workspaceId) {
+      res.status(400).json({ error: 'Workspace ID is required' });
+      return;
+    }
+
+    const limit = parseInt(req.query.limit as string) || 20;
+    const offset = parseInt(req.query.offset as string) || 0;
+    const memories = await container.sharedMemory.listWorkspaceMemories(
+      workspaceId,
+      req.userId!,
+      limit,
+      offset,
+    );
+    res.json({ memories });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(err instanceof Error && message.includes('Not a member') ? 403 : 500).json({
+      error: message,
+    });
   }
 });
 

@@ -3,6 +3,7 @@ import { useAuth } from '@/modules/auth/components/AuthProvider';
 import { MemoryCapture } from '@/modules/memory/components/MemoryCapture';
 import { MemoryFeed } from '@/modules/memory/components/MemoryFeed';
 import { SearchPanel } from '@/modules/search/components/SearchPanel';
+import { WorkspacePanel } from '@/modules/workspace/components/WorkspacePanel';
 import { Button } from '@/shared/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar';
 import { useState } from 'react';
@@ -82,14 +83,7 @@ export function Dashboard() {
           </div>
         )}
 
-        {tab === 'shared' && (
-          <div className="py-12 text-center text-muted-foreground">
-            <Users className="mx-auto h-12 w-12 mb-4 opacity-50" />
-            <p className="font-medium">Shared Workspaces</p>
-            <p className="text-sm mt-2">Invite collaborators and build shared memory together.</p>
-            <p className="text-xs mt-4 text-muted-foreground">Coming soon in your workspace setup.</p>
-          </div>
-        )}
+        {tab === 'shared' && <WorkspacePanel />}
       </main>
     </div>
   );

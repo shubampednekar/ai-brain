@@ -107,4 +107,8 @@ export class MemoryService {
   async listByUser(userId: string, limit = 20, offset = 0): Promise<Memory[]> {
     return this.memoryRepo.findByUserId(userId, { limit, offset });
   }
+
+  async listByWorkspace(workspaceId: string, limit = 20, offset = 0): Promise<Memory[]> {
+    return this.memoryRepo.findByWorkspaceId(workspaceId, { limit, offset });
+  }
 }

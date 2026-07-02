@@ -52,6 +52,27 @@ export class SharedMemoryService {
     invitedBy: string,
     role: 'admin' | 'member' | 'viewer' = 'member',
   ) {
+    await this.assertMember(workspaceId, invitedBy);
+
+    const { data: membership } = await this.ctx.supabase
+      .from('workspace_members')
+      .select('role')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', invitedBy)
+      .maybeSingle();
+
+    const canInvite =
+      membership?.role === 'owner' ||
+      membership?.role === 'admin' ||
+      (await this.ctx.supabase
+        .from('shared_workspaces')
+        .select('id')
+        .eq('id', workspaceId)
+        .eq('owner_id', invitedBy)
+        .maybeSingle()).data;
+
+    if (!canInvite) throw new Error('Not authorized to invite members');
+
     const { data: invitation, error } = await this.ctx.supabase
       .from('workspace_invitations')
       .insert({ workspace_id: workspaceId, email, invited_by: invitedBy, role })
@@ -83,7 +104,7 @@ export class SharedMemoryService {
     return invitation;
   }
 
-  async acceptInvitation(token: string, userId: string) {
+  async acceptInvitation(token: string, userId: string): Promise<Workspace> {
     const { data: invitation, error } = await this.ctx.supabase
       .from('workspace_invitations')
       .select('*')
@@ -94,17 +115,36 @@ export class SharedMemoryService {
 
     if (error || !invitation) throw new Error('Invalid or expired invitation');
 
-    await this.ctx.supabase.from('workspace_members').insert({
-      workspace_id: invitation.workspace_id,
-      user_id: userId,
-      role: invitation.role,
-      invited_by: invitation.invited_by,
-    });
+    const { data: existingMember } = await this.ctx.supabase
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', invitation.workspace_id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!existingMember) {
+      await this.ctx.supabase.from('workspace_members').insert({
+        workspace_id: invitation.workspace_id,
+        user_id: userId,
+        role: invitation.role,
+        invited_by: invitation.invited_by,
+      });
+    }
 
     await this.ctx.supabase
       .from('workspace_invitations')
       .update({ accepted_at: new Date().toISOString() })
       .eq('id', invitation.id);
+
+    const { data: workspace, error: workspaceError } = await this.ctx.supabase
+      .from('shared_workspaces')
+      .select('*')
+      .eq('id', invitation.workspace_id)
+      .single();
+
+    if (workspaceError || !workspace) {
+      throw new Error('Failed to load workspace after accepting invitation');
+    }
 
     await this.ctx.eventBus.publish({
       type: EVENT_TYPES.WORKSPACE_MEMBER_JOINED,
@@ -113,6 +153,28 @@ export class SharedMemoryService {
       userId,
       payload: { workspaceId: invitation.workspace_id },
     });
+
+    return workspace;
+  }
+
+  async assertMember(workspaceId: string, userId: string): Promise<void> {
+    const { data: member } = await this.ctx.supabase
+      .from('workspace_members')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (member) return;
+
+    const { data: workspace } = await this.ctx.supabase
+      .from('shared_workspaces')
+      .select('id')
+      .eq('id', workspaceId)
+      .eq('owner_id', userId)
+      .maybeSingle();
+
+    if (!workspace) throw new Error('Not a member of this workspace');
   }
 
   async listWorkspaces(userId: string) {
@@ -123,5 +185,15 @@ export class SharedMemoryService {
 
     if (error) throw new Error(`Failed to list workspaces: ${error.message}`);
     return data ?? [];
+  }
+
+  async listWorkspaceMemories(
+    workspaceId: string,
+    userId: string,
+    limit = 20,
+    offset = 0,
+  ) {
+    await this.assertMember(workspaceId, userId);
+    return this.memoryService.listByWorkspace(workspaceId, limit, offset);
   }
 }

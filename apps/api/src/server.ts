@@ -109,11 +109,13 @@ app.get('/workspaces', authMiddleware, async (req: AuthenticatedRequest, res) =>
   try {
     const memberships = await container.sharedMemory.listWorkspaces(req.userId!);
     const workspaces = memberships
-      .filter((m) => m.shared_workspaces != null)
-      .map((m) => ({
-        ...(m.shared_workspaces as NonNullable<typeof m.shared_workspaces>),
-        role: m.role,
-      }));
+      .map((m) => {
+        const ws = m.shared_workspaces;
+        const workspace = Array.isArray(ws) ? ws[0] : ws;
+        if (!workspace) return null;
+        return { ...workspace, role: m.role };
+      })
+      .filter((w): w is NonNullable<typeof w> => w !== null);
     res.json({ workspaces });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';
@@ -174,6 +176,30 @@ app.get('/workspaces/:id/memories', authMiddleware, async (req: AuthenticatedReq
       offset,
     );
     res.json({ memories });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(err instanceof Error && message.includes('Not a member') ? 403 : 500).json({
+      error: message,
+    });
+  }
+});
+
+app.post('/workspaces/:id/ask', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const workspaceId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!workspaceId) {
+      res.status(400).json({ error: 'Workspace ID is required' });
+      return;
+    }
+
+    const { query } = req.body as { query?: string };
+    if (!query?.trim()) {
+      res.status(400).json({ error: 'Query is required' });
+      return;
+    }
+
+    const result = await container.workspaceAsk.ask(workspaceId, req.userId!, query.trim());
+    res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';
     res.status(err instanceof Error && message.includes('Not a member') ? 403 : 500).json({

@@ -715,6 +715,26 @@ export interface Database {
           similarity: number;
         }[];
       };
+      search_workspace_memories: {
+        Args: {
+          p_workspace_id: string;
+          p_query: string;
+          p_query_embedding?: number[];
+          p_limit?: number;
+          p_offset?: number;
+        };
+        Returns: {
+          id: string;
+          user_id: string;
+          original_text: string;
+          summary: string | null;
+          intent_slug: string | null;
+          similarity: number;
+          text_rank: number;
+          combined_score: number;
+          created_at: string;
+        }[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

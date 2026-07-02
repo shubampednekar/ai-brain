@@ -95,4 +95,61 @@ export class NotificationService {
       `${assignerName ?? 'Someone'} assigned you a task: ${taskTitle}`,
     );
   }
+
+  async sendWorkspaceTaskCreatedEmail(
+    memberId: string,
+    taskTitle: string,
+    creatorName: string,
+    workspaceName: string,
+    taskDescription?: string,
+  ): Promise<void> {
+    const body = [
+      `${creatorName} created a new task in workspace "${workspaceName}".`,
+      `Task: ${taskTitle}`,
+      taskDescription ? `Details: ${taskDescription}` : '',
+      'Open the Shared tab in AI Brain to view workspace memories and ask questions.',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    await this.notifyUser(memberId, `New workspace task: ${taskTitle}`, body);
+  }
+
+  async sendWorkspaceQuestionEscalationEmail(
+    targetUserId: string,
+    details: {
+      workspaceName: string;
+      askerName: string;
+      question: string;
+      aiAnswer: string;
+      confidence: number;
+      relatedTaskTitle?: string;
+      contextFound: string;
+      frontendUrl?: string;
+    },
+  ): Promise<void> {
+    const workspaceLink = details.frontendUrl
+      ? `${details.frontendUrl.replace(/\/$/, '')}`
+      : 'your AI Brain app';
+
+    const body = [
+      `${details.askerName} asked a question in workspace "${details.workspaceName}" that needs your input.`,
+      details.relatedTaskTitle
+        ? `Related task: ${details.relatedTaskTitle}`
+        : '',
+      `Question: ${details.question}`,
+      `AI attempted answer (confidence ${Math.round(details.confidence * 100)}%): ${details.aiAnswer}`,
+      `Context from shared memories:\n${details.contextFound}`,
+      `Please add a shared memory or reply in the workspace so your teammate has a clear answer.`,
+      `Open: ${workspaceLink}`,
+    ]
+      .filter(Boolean)
+      .join('\n\n');
+
+    await this.notifyUser(
+      targetUserId,
+      `Clarification needed in ${details.workspaceName}`,
+      body,
+    );
+  }
 }

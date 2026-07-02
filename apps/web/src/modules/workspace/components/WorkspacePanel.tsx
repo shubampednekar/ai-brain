@@ -12,6 +12,7 @@ import {
 import { useWorkspaces } from '../hooks/useWorkspaces';
 import { WorkspaceCapture } from './WorkspaceCapture';
 import { WorkspaceMemoryFeed } from './WorkspaceMemoryFeed';
+import { WorkspaceAsk } from './WorkspaceAsk';
 import { PageLayout } from '@/shared/components/layout/PageLayout';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -282,9 +283,11 @@ export function WorkspacePanel() {
             ) : (
               <p className="text-sm text-muted-foreground mt-1.5 italic">No description</p>
             )}
-          </div>
+              </div>
 
-          <Card>
+              <WorkspaceAsk workspaceId={selected.id} />
+
+              <Card>
             <CardHeader className="pb-4">
               <CardTitle className="text-base flex items-center gap-2">
                 <MessageSquarePlus className="h-4 w-4" />

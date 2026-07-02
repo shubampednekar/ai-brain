@@ -7,6 +7,7 @@ import { MemoryService } from './modules/memory/index.js';
 import { SearchService } from './modules/search/index.js';
 import { SharedMemoryService } from './modules/shared-memory/index.js';
 import { ConversationService } from './modules/conversation/index.js';
+import { WorkspaceAskService } from './modules/workspace-ask/index.js';
 import { JobProcessor } from './modules/jobs/services/job-processor.service.js';
 import { JobService } from './modules/jobs/index.js';
 
@@ -16,6 +17,7 @@ export class AppContainer {
   readonly search: SearchService;
   readonly sharedMemory: SharedMemoryService;
   readonly conversation: ConversationService;
+  readonly workspaceAsk: WorkspaceAskService;
   readonly jobs: JobService;
   readonly jobProcessor: JobProcessor;
 
@@ -42,6 +44,7 @@ export class AppContainer {
     this.search = new SearchService(this.ctx);
     this.sharedMemory = new SharedMemoryService(this.ctx);
     this.conversation = new ConversationService(this.ctx);
+    this.workspaceAsk = new WorkspaceAskService(this.ctx);
     this.jobs = new JobService(this.ctx);
     this.jobProcessor = new JobProcessor(this.ctx);
   }

@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.ts",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    { "src": "/api/process-jobs", "dest": "/api/process-jobs.ts" },
+    { "src": "/api/send-reminders", "dest": "/api/send-reminders.ts" },
+    { "src": "/api/health", "dest": "/api/health.ts" }
+  ],
+  "crons": [
+    { "path": "/api/process-jobs", "schedule": "* * * * *" },
+    { "path": "/api/send-reminders", "schedule": "*/5 * * * *" }
+  ]
+}

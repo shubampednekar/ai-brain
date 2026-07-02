@@ -61,9 +61,6 @@ export function MemoryCapture() {
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground text-center">
-        Press ⌘+Enter to capture · No folders, tags, or categories needed
-      </p>
     </div>
   );
 }

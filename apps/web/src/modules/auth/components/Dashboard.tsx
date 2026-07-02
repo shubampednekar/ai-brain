@@ -1,7 +1,6 @@
 import { Brain, LogOut, Search, Sparkles, Users } from 'lucide-react';
 import { useAuth } from '@/modules/auth/components/AuthProvider';
-import { MemoryCapture } from '@/modules/memory/components/MemoryCapture';
-import { MemoryFeed } from '@/modules/memory/components/MemoryFeed';
+import { CapturePanel } from '@/modules/memory/components/CapturePanel';
 import { SearchPanel } from '@/modules/search/components/SearchPanel';
 import { WorkspacePanel } from '@/modules/workspace/components/WorkspacePanel';
 import { Button } from '@/shared/components/ui/button';
@@ -21,7 +20,7 @@ export function Dashboard() {
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Brain className="h-6 w-6 text-primary" />
             <span className="font-semibold text-lg">AI Brain</span>
@@ -38,7 +37,7 @@ export function Dashboard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-8 flex gap-2 rounded-lg bg-muted p-1">
           <Button
             variant={tab === 'capture' ? 'default' : 'ghost'}
@@ -66,22 +65,9 @@ export function Dashboard() {
           </Button>
         </div>
 
-        {tab === 'capture' && (
-          <div className="space-y-8">
-            <MemoryCapture />
-            <div>
-              <h2 className="mb-4 text-lg font-medium">Recent Memories</h2>
-              <MemoryFeed />
-            </div>
-          </div>
-        )}
+        {tab === 'capture' && <CapturePanel />}
 
-        {tab === 'search' && (
-          <div>
-            <h2 className="mb-4 text-lg font-medium">AI Search</h2>
-            <SearchPanel />
-          </div>
-        )}
+        {tab === 'search' && <SearchPanel />}
 
         {tab === 'shared' && <WorkspacePanel />}
       </main>

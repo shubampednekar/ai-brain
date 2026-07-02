@@ -45,13 +45,47 @@ app.post('/capture-memory', authMiddleware, async (req: AuthenticatedRequest, re
 
 app.post('/search', authMiddleware, async (req: AuthenticatedRequest, res) => {
   try {
-    const { query, workspaceId } = req.body as { query?: string; workspaceId?: string };
+    const { query, workspaceId, limit, offset } = req.body as {
+      query?: string;
+      workspaceId?: string;
+      limit?: number;
+      offset?: number;
+    };
     if (!query?.trim()) {
       res.status(400).json({ error: 'Query is required' });
       return;
     }
 
-    const result = await container.search.ask(req.userId!, query.trim());
+    const results = await container.search.search(req.userId!, query.trim(), {
+      workspaceId,
+      limit,
+      offset,
+    });
+    res.json({ results });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.post('/ask', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { query, workspaceId, limit, minCombinedScore } = req.body as {
+      query?: string;
+      workspaceId?: string;
+      limit?: number;
+      minCombinedScore?: number;
+    };
+    if (!query?.trim()) {
+      res.status(400).json({ error: 'Query is required' });
+      return;
+    }
+
+    const result = await container.search.ask(req.userId!, query.trim(), {
+      workspaceId,
+      limit,
+      minCombinedScore,
+    });
     res.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';

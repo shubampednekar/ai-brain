@@ -28,7 +28,7 @@ export function SearchPanel() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Not authenticated');
 
-      const response = await fetch(`${apiUrl}/search`, {
+      const response = await fetch(`${apiUrl}/ask`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -75,7 +75,7 @@ export function SearchPanel() {
       {sources.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Sources
+            Relevant memories
           </p>
           {sources.map((source, i) => (
             <Card key={source.id}>

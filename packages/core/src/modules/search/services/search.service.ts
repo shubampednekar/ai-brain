@@ -1,5 +1,8 @@
 import type { ServiceContext } from '../../../shared/types.js';
 
+/** Minimum hybrid score for a memory to be sent to the LLM as context. */
+export const DEFAULT_MIN_COMBINED_SCORE = 0.2;
+
 export interface SearchResult {
   id: string;
   originalText: string;
@@ -9,6 +12,12 @@ export interface SearchResult {
   textRank: number;
   combinedScore: number;
   createdAt: string;
+}
+
+export interface AskOptions {
+  workspaceId?: string;
+  limit?: number;
+  minCombinedScore?: number;
 }
 
 export class SearchService {
@@ -51,8 +60,22 @@ export class SearchService {
     }));
   }
 
-  async ask(userId: string, question: string): Promise<{ answer: string; sources: SearchResult[] }> {
-    const sources = await this.search(userId, question, { limit: 5 });
+  async ask(
+    userId: string,
+    question: string,
+    options?: AskOptions,
+  ): Promise<{ answer: string; sources: SearchResult[] }> {
+    const limit = options?.limit ?? 5;
+    const minScore = options?.minCombinedScore ?? DEFAULT_MIN_COMBINED_SCORE;
+
+    const candidates = await this.search(userId, question, {
+      workspaceId: options?.workspaceId,
+      limit: Math.max(limit * 2, 10),
+    });
+
+    const sources = candidates
+      .filter((s) => s.combinedScore >= minScore)
+      .slice(0, limit);
 
     const context = sources
       .map((s, i) => `[${i + 1}] ${s.originalText}${s.summary ? ` (Summary: ${s.summary})` : ''}`)

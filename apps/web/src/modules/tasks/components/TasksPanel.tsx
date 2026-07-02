@@ -1,5 +1,6 @@
 import { CheckCircle2, Circle, ListTodo, Loader2, Lightbulb } from 'lucide-react';
 import { useTasks } from '../hooks/useTasks';
+import { TaskRoleBadge } from './TaskRoleBadge';
 import { PageLayout } from '@/shared/components/layout/PageLayout';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/components/ui/card';
@@ -107,7 +108,13 @@ function TaskRow({
   const isDone = task.status === 'completed';
 
   return (
-    <Card className={cn(isDone && 'opacity-60')}>
+    <Card
+      className={cn(
+        isDone && 'opacity-60',
+        task.roleTone === 'action' && !isDone && 'border-primary/25 bg-primary/5',
+        task.roleTone === 'waiting' && !isDone && 'border-amber-500/25 bg-amber-500/5',
+      )}
+    >
       <CardContent className="flex items-start gap-3 p-4">
         <Button
           type="button"
@@ -123,6 +130,14 @@ function TaskRow({
           )}
         </Button>
         <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <TaskRoleBadge task={task} />
+            {task.workspaceName ? (
+              <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                {task.workspaceName}
+              </span>
+            ) : null}
+          </div>
           <p className={cn('font-medium text-sm', isDone && 'line-through text-muted-foreground')}>
             {task.title}
           </p>
@@ -132,10 +147,9 @@ function TaskRow({
           <div className="flex flex-wrap gap-2 mt-2 text-xs text-muted-foreground">
             <span className={PRIORITY_COLORS[task.priority] ?? ''}>{task.priority}</span>
             {task.dueAt ? <span>Due {new Date(task.dueAt).toLocaleDateString()}</span> : null}
-            {task.workspaceName ? (
-              <span className="rounded-full bg-muted px-2 py-0.5">{task.workspaceName}</span>
+            {task.creatorName && task.roleTone !== 'waiting' && task.roleTone !== 'action' ? (
+              <span>by {task.creatorName}</span>
             ) : null}
-            {task.assigneeName ? <span>→ {task.assigneeName}</span> : null}
           </div>
         </div>
       </CardContent>

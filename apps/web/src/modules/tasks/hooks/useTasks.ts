@@ -10,8 +10,12 @@ export interface TaskItem {
   dueAt: string | null;
   workspaceId: string | null;
   workspaceName: string | null;
+  creatorId: string;
+  creatorName: string | null;
   assigneeId: string | null;
   assigneeName: string | null;
+  roleLabel: string;
+  roleTone: 'action' | 'waiting' | 'neutral';
   memoryId: string | null;
   createdAt: string;
 }

@@ -20,8 +20,12 @@ export interface TaskListItem {
   dueAt: string | null;
   workspaceId: string | null;
   workspaceName: string | null;
+  creatorId: string;
+  creatorName: string | null;
   assigneeId: string | null;
   assigneeName: string | null;
+  roleLabel: string;
+  roleTone: 'action' | 'waiting' | 'neutral';
   memoryId: string | null;
   createdAt: string;
 }
@@ -38,7 +42,7 @@ export class TaskService {
     options?: { workspaceId?: string; status?: string },
   ): Promise<TaskListItem[]> {
     const select =
-      'id, title, description, status, priority, due_at, workspace_id, assignee_id, memory_id, created_at';
+      'id, title, description, status, priority, due_at, workspace_id, user_id, assignee_id, memory_id, created_at';
 
     let rows: Array<{
       id: string;
@@ -48,6 +52,7 @@ export class TaskService {
       priority: TaskListItem['priority'];
       due_at: string | null;
       workspace_id: string | null;
+      user_id: string;
       assignee_id: string | null;
       memory_id: string | null;
       created_at: string;
@@ -117,7 +122,7 @@ export class TaskService {
         .slice(0, 50);
     }
 
-    return this.mapTaskRows(rows);
+    return this.mapTaskRows(rows, userId);
   }
 
   private async getUserWorkspaceIds(userId: string): Promise<string[]> {
@@ -134,6 +139,53 @@ export class TaskService {
     ];
   }
 
+  private getTaskRole(
+    viewerUserId: string,
+    row: {
+      user_id: string;
+      assignee_id: string | null;
+      workspace_id: string | null;
+      status: TaskListItem['status'];
+    },
+    creatorName: string | null,
+    assigneeName: string | null,
+  ): { roleLabel: string; roleTone: TaskListItem['roleTone'] } {
+    const isCreator = row.user_id === viewerUserId;
+    const isAssignee = row.assignee_id === viewerUserId;
+    const isDone = row.status === 'completed' || row.status === 'cancelled';
+    const creator = creatorName ?? 'teammate';
+    const assignee = assigneeName ?? 'teammate';
+
+    if (isDone) {
+      if (isCreator && isAssignee) return { roleLabel: 'You completed this', roleTone: 'neutral' };
+      if (isCreator) return { roleLabel: `Completed by ${assignee}`, roleTone: 'neutral' };
+      if (isAssignee) return { roleLabel: 'You completed this', roleTone: 'neutral' };
+      return { roleLabel: `Created by ${creator}`, roleTone: 'neutral' };
+    }
+
+    if (!row.workspace_id) {
+      if (isAssignee && !isCreator) return { roleLabel: 'Assigned to you', roleTone: 'action' };
+      return { roleLabel: 'Your task', roleTone: 'neutral' };
+    }
+
+    if (isAssignee && !isCreator) {
+      return { roleLabel: 'For you — please complete', roleTone: 'action' };
+    }
+    if (isCreator && isAssignee) {
+      return { roleLabel: 'Your task', roleTone: 'action' };
+    }
+    if (isCreator && row.assignee_id) {
+      return { roleLabel: `Waiting on ${assignee}`, roleTone: 'waiting' };
+    }
+    if (isCreator) {
+      return { roleLabel: 'You created — unassigned', roleTone: 'waiting' };
+    }
+    if (row.assignee_id) {
+      return { roleLabel: `Assigned to ${assignee}`, roleTone: 'neutral' };
+    }
+    return { roleLabel: `Created by ${creator}`, roleTone: 'neutral' };
+  }
+
   private async mapTaskRows(
     rows: Array<{
       id: string;
@@ -143,13 +195,20 @@ export class TaskService {
       priority: TaskListItem['priority'];
       due_at: string | null;
       workspace_id: string | null;
+      user_id: string;
       assignee_id: string | null;
       memory_id: string | null;
       created_at: string;
     }>,
+    viewerUserId: string,
   ): Promise<TaskListItem[]> {
     const workspaceIds = [...new Set(rows.map((r) => r.workspace_id).filter(Boolean))] as string[];
-    const assigneeIds = [...new Set(rows.map((r) => r.assignee_id).filter(Boolean))] as string[];
+    const profileIds = [
+      ...new Set([
+        ...rows.map((r) => r.user_id),
+        ...rows.map((r) => r.assignee_id).filter(Boolean),
+      ]),
+    ] as string[];
 
     const workspaceMap = new Map<string, string>();
     if (workspaceIds.length) {
@@ -161,28 +220,38 @@ export class TaskService {
     }
 
     const profileMap = new Map<string, string>();
-    if (assigneeIds.length) {
+    if (profileIds.length) {
       const { data: profiles } = await this.ctx.supabase
         .from('profiles')
         .select('id, full_name, email')
-        .in('id', assigneeIds);
+        .in('id', profileIds);
       for (const p of profiles ?? []) profileMap.set(p.id, p.full_name ?? p.email);
     }
 
-    return rows.map((row) => ({
-      id: row.id,
-      title: row.title,
-      description: row.description,
-      status: row.status,
-      priority: row.priority,
-      dueAt: row.due_at,
-      workspaceId: row.workspace_id,
-      workspaceName: row.workspace_id ? (workspaceMap.get(row.workspace_id) ?? null) : null,
-      assigneeId: row.assignee_id,
-      assigneeName: row.assignee_id ? (profileMap.get(row.assignee_id) ?? null) : null,
-      memoryId: row.memory_id,
-      createdAt: row.created_at,
-    }));
+    return rows.map((row) => {
+      const creatorName = profileMap.get(row.user_id) ?? null;
+      const assigneeName = row.assignee_id ? (profileMap.get(row.assignee_id) ?? null) : null;
+      const { roleLabel, roleTone } = this.getTaskRole(viewerUserId, row, creatorName, assigneeName);
+
+      return {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        status: row.status,
+        priority: row.priority,
+        dueAt: row.due_at,
+        workspaceId: row.workspace_id,
+        workspaceName: row.workspace_id ? (workspaceMap.get(row.workspace_id) ?? null) : null,
+        creatorId: row.user_id,
+        creatorName,
+        assigneeId: row.assignee_id,
+        assigneeName,
+        roleLabel,
+        roleTone,
+        memoryId: row.memory_id,
+        createdAt: row.created_at,
+      };
+    });
   }
 
   async updateStatus(
@@ -221,7 +290,9 @@ export class TaskService {
       .from('tasks')
       .update(updates)
       .eq('id', taskId)
-      .select('id, title, description, status, priority, due_at, workspace_id, assignee_id, memory_id, created_at')
+      .select(
+        'id, title, description, status, priority, due_at, workspace_id, user_id, assignee_id, memory_id, created_at',
+      )
       .single();
 
     if (error) throw new Error(`Failed to update task: ${error.message}`);
@@ -236,40 +307,9 @@ export class TaskService {
       });
     }
 
-    let workspaceName: string | null = null;
-    if (updated.workspace_id) {
-      const { data: ws } = await this.ctx.supabase
-        .from('shared_workspaces')
-        .select('name')
-        .eq('id', updated.workspace_id)
-        .single();
-      workspaceName = ws?.name ?? null;
-    }
-
-    let assigneeName: string | null = null;
-    if (updated.assignee_id) {
-      const { data: profile } = await this.ctx.supabase
-        .from('profiles')
-        .select('full_name, email')
-        .eq('id', updated.assignee_id)
-        .single();
-      assigneeName = profile?.full_name ?? profile?.email ?? null;
-    }
-
-    return {
-      id: updated.id,
-      title: updated.title,
-      description: updated.description,
-      status: updated.status,
-      priority: updated.priority,
-      dueAt: updated.due_at,
-      workspaceId: updated.workspace_id,
-      workspaceName,
-      assigneeId: updated.assignee_id,
-      assigneeName,
-      memoryId: updated.memory_id,
-      createdAt: updated.created_at,
-    };
+    const [mapped] = await this.mapTaskRows([updated], userId);
+    if (!mapped) throw new Error('Failed to map updated task');
+    return mapped;
   }
 
   async extractFromMemory(

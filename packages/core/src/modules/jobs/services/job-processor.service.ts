@@ -35,10 +35,6 @@ export class JobProcessor {
             job.payload.text as string,
             job.payload.userId as string,
           );
-          await new RelationshipService(this.ctx).buildForMemory(
-            job.payload.memoryId as string,
-            job.payload.userId as string,
-          );
           break;
         }
         case 'metadata.extract': {
@@ -48,6 +44,10 @@ export class JobProcessor {
             job.payload.text as string,
             job.payload.userId as string,
             job.payload.classification as import('../../memory/types.js').IntentClassification | undefined,
+          );
+          await new RelationshipService(this.ctx).buildForMemory(
+            job.payload.memoryId as string,
+            job.payload.userId as string,
           );
           break;
         }

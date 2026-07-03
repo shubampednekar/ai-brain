@@ -195,6 +195,33 @@ app.patch('/reminders/:id', authMiddleware, async (req: AuthenticatedRequest, re
   }
 });
 
+app.get('/escalations', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const escalations = await container.escalations.listOpenForTarget(req.userId!);
+    res.json({ escalations });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.post('/escalations/:id/regenerate-draft', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const escalationId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!escalationId) {
+      res.status(400).json({ error: 'Escalation ID is required' });
+      return;
+    }
+
+    const escalation = await container.escalations.regenerateDraft(escalationId, req.userId!);
+    res.json({ escalation });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    const status = message.includes('not found') ? 404 : message.includes('Only the assigned') ? 403 : 500;
+    res.status(status).json({ error: message });
+  }
+});
+
 app.get('/escalations/:id', authMiddleware, async (req: AuthenticatedRequest, res) => {
   try {
     const escalationId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -377,6 +404,99 @@ app.post('/workspaces/:id/invite', authMiddleware, async (req: AuthenticatedRequ
       role ?? 'member',
     );
     res.json({ invitation });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.get('/graph', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { data: memories, error: memError } = await container.ctx.supabase
+      .from('memories')
+      .select('id, original_text, summary, intent_slug, created_at, user_id')
+      .eq('user_id', req.userId!)
+      .is('workspace_id', null)
+      .eq('is_active', true);
+
+    if (memError) throw memError;
+
+    const memoryIds = (memories ?? []).map((m) => m.id);
+
+    let relationships: any[] = [];
+    if (memoryIds.length > 0) {
+      const { data: rels, error: relError } = await container.ctx.supabase
+        .from('memory_relationships')
+        .select('source_memory_id, target_memory_id, relationship_type, confidence')
+        .in('source_memory_id', memoryIds)
+        .in('target_memory_id', memoryIds);
+
+      if (relError) throw relError;
+      relationships = rels ?? [];
+    }
+
+    let entities: any[] = [];
+    if (memoryIds.length > 0) {
+      const { data: ents, error: entError } = await container.ctx.supabase
+        .from('memory_entities')
+        .select('memory_id, entity_type, entity_value, normalized_value')
+        .in('memory_id', memoryIds);
+
+      if (entError) throw entError;
+      entities = ents ?? [];
+    }
+
+    res.json({ memories: memories ?? [], relationships, entities });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.get('/workspaces/:id/graph', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const workspaceId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!workspaceId) {
+      res.status(400).json({ error: 'Workspace ID is required' });
+      return;
+    }
+
+    await container.sharedMemory.assertMember(workspaceId, req.userId!);
+
+    const { data: memories, error: memError } = await container.ctx.supabase
+      .from('memories')
+      .select('id, original_text, summary, intent_slug, created_at, user_id')
+      .eq('workspace_id', workspaceId)
+      .eq('is_active', true);
+
+    if (memError) throw memError;
+
+    const memoryIds = (memories ?? []).map((m) => m.id);
+
+    let relationships: any[] = [];
+    if (memoryIds.length > 0) {
+      const { data: rels, error: relError } = await container.ctx.supabase
+        .from('memory_relationships')
+        .select('source_memory_id, target_memory_id, relationship_type, confidence')
+        .in('source_memory_id', memoryIds)
+        .in('target_memory_id', memoryIds);
+
+      if (relError) throw relError;
+      relationships = rels ?? [];
+    }
+
+    let entities: any[] = [];
+    if (memoryIds.length > 0) {
+      const { data: ents, error: entError } = await container.ctx.supabase
+        .from('memory_entities')
+        .select('memory_id, entity_type, entity_value, normalized_value')
+        .in('memory_id', memoryIds);
+
+      if (entError) throw entError;
+      entities = ents ?? [];
+    }
+
+    res.json({ memories: memories ?? [], relationships, entities });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Internal error';
     res.status(500).json({ error: message });

@@ -1,15 +1,17 @@
-import { Brain, LogOut, Search, Sparkles, Users, ListTodo, Bell } from 'lucide-react';
+import { Brain, LogOut, Search, Sparkles, Users, ListTodo, Bell, Share2 } from 'lucide-react';
 import { useAuth } from '@/modules/auth/components/AuthProvider';
 import { CapturePanel } from '@/modules/memory/components/CapturePanel';
 import { SearchPanel } from '@/modules/search/components/SearchPanel';
 import { WorkspacePanel } from '@/modules/workspace/components/WorkspacePanel';
 import { TasksPanel } from '@/modules/tasks/components/TasksPanel';
 import { RemindersPanel } from '@/modules/reminders/components/RemindersPanel';
+import { GraphPanel } from '@/modules/search/components/GraphPanel';
+import { EscalationInbox } from '@/modules/workspace/components/EscalationInbox';
 import { Button } from '@/shared/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar';
 import { useState } from 'react';
 
-type Tab = 'capture' | 'search' | 'tasks' | 'reminders' | 'shared';
+type Tab = 'capture' | 'search' | 'graph' | 'tasks' | 'reminders' | 'shared';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
@@ -40,6 +42,8 @@ export function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-5xl px-4 py-8">
+        <EscalationInbox />
+
         <div className="mb-8 flex flex-wrap gap-2 rounded-lg bg-muted p-1">
           <Button
             variant={tab === 'capture' ? 'default' : 'ghost'}
@@ -56,6 +60,14 @@ export function Dashboard() {
           >
             <Search className="h-4 w-4 mr-2" />
             Search
+          </Button>
+          <Button
+            variant={tab === 'graph' ? 'default' : 'ghost'}
+            className="flex-1 min-w-[5.5rem]"
+            onClick={() => setTab('graph')}
+          >
+            <Share2 className="h-4 w-4 mr-2 rotate-90" />
+            Graph
           </Button>
           <Button
             variant={tab === 'tasks' ? 'default' : 'ghost'}
@@ -86,6 +98,8 @@ export function Dashboard() {
         {tab === 'capture' && <CapturePanel />}
 
         {tab === 'search' && <SearchPanel />}
+
+        {tab === 'graph' && <GraphPanel />}
 
         {tab === 'tasks' && <TasksPanel />}
 

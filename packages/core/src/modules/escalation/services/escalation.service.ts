@@ -17,6 +17,16 @@ export interface EscalationRecord {
   createdAt: string;
 }
 
+export interface EscalationSummary {
+  id: string;
+  workspaceId: string;
+  workspaceName: string;
+  askerName: string;
+  question: string;
+  confidence: number | null;
+  createdAt: string;
+}
+
 export class EscalationService {
   private notifications: NotificationService;
 
@@ -67,6 +77,114 @@ export class EscalationService {
 
     if (error) throw new Error(`Failed to create escalation: ${error.message}`);
     return data.id;
+  }
+
+  async generateDraftAnswer(
+    workspaceId: string,
+    targetUserId: string,
+    question: string,
+    fallbackAnswer?: string,
+  ): Promise<string> {
+    const { data: targetWorkspaceMemories } = await this.ctx.supabase
+      .from('memories')
+      .select('original_text, summary')
+      .eq('user_id', targetUserId)
+      .eq('workspace_id', workspaceId)
+      .eq('is_active', true)
+      .limit(12);
+
+    const targetContext = (targetWorkspaceMemories ?? [])
+      .map((m, i) => `[Memory ${i + 1}] ${m.original_text}${m.summary ? ` (Summary: ${m.summary})` : ''}`)
+      .join('\n');
+
+    try {
+      const draftResult = await this.ctx.ai.chat({
+        messages: [
+          {
+            role: 'system',
+            content: `You are AI Brain. A question has been escalated to you to answer on behalf of a teammate (using their documented memories).
+Write a helpful, concise draft answer in the first-person (using 'I' or 'we') representing the teammate's perspective.
+If their memories do not provide the answer, output a brief, polite response acknowledging you don't know yet but will find out, highlighting any minor details that were found. Do not mention system user IDs.`,
+          },
+          {
+            role: 'user',
+            content: `Your documented memories:\n${targetContext || 'No specific memories found.'}\n\nQuestion from teammate: ${question}`,
+          },
+        ],
+        temperature: 0.3,
+      });
+      if (draftResult.content?.trim()) {
+        return draftResult.content.trim();
+      }
+    } catch {
+      // fall through to fallback
+    }
+
+    return fallbackAnswer ?? '';
+  }
+
+  async listOpenForTarget(userId: string): Promise<EscalationSummary[]> {
+    const { data, error } = await this.ctx.supabase
+      .from('workspace_question_escalations')
+      .select('id, workspace_id, asker_id, question, confidence, created_at')
+      .eq('target_id', userId)
+      .eq('status', 'open')
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(`Failed to list escalations: ${error.message}`);
+    if (!data?.length) return [];
+
+    const workspaceIds = [...new Set(data.map((e) => e.workspace_id))];
+    const askerIds = [...new Set(data.map((e) => e.asker_id))];
+
+    const [{ data: workspaces }, { data: askers }] = await Promise.all([
+      this.ctx.supabase.from('shared_workspaces').select('id, name').in('id', workspaceIds),
+      this.ctx.supabase.from('profiles').select('id, full_name, email').in('id', askerIds),
+    ]);
+
+    const workspaceMap = new Map((workspaces ?? []).map((w) => [w.id, w.name]));
+    const askerMap = new Map(
+      (askers ?? []).map((a) => [a.id, a.full_name ?? a.email ?? 'A teammate']),
+    );
+
+    return data.map((row) => ({
+      id: row.id,
+      workspaceId: row.workspace_id,
+      workspaceName: workspaceMap.get(row.workspace_id) ?? 'workspace',
+      askerName: askerMap.get(row.asker_id) ?? 'A teammate',
+      question: row.question,
+      confidence: row.confidence,
+      createdAt: row.created_at,
+    }));
+  }
+
+  async regenerateDraft(escalationId: string, userId: string): Promise<EscalationRecord> {
+    const escalation = await this.getById(escalationId, userId);
+
+    if (escalation.status === 'resolved') {
+      throw new Error('Cannot regenerate draft for a resolved escalation');
+    }
+
+    if (escalation.targetId !== userId) {
+      throw new Error('Only the assigned teammate can regenerate this draft');
+    }
+
+    const draftAnswer = await this.generateDraftAnswer(
+      escalation.workspaceId,
+      escalation.targetId,
+      escalation.question,
+      escalation.aiAnswer ?? undefined,
+    );
+
+    const { error } = await this.ctx.supabase
+      .from('workspace_question_escalations')
+      .update({ ai_answer: draftAnswer })
+      .eq('id', escalationId)
+      .eq('status', 'open');
+
+    if (error) throw new Error(`Failed to update draft: ${error.message}`);
+
+    return this.getById(escalationId, userId);
   }
 
   async getById(escalationId: string, userId: string): Promise<EscalationRecord> {

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import {
   Activity,
   HelpCircle,
@@ -6,8 +7,10 @@ import {
   MessageSquarePlus,
   UserPlus,
 } from 'lucide-react';
+import { useAuth } from '@/modules/auth/components/AuthProvider';
 import { useWorkspaceActivity } from '../hooks/useWorkspaceActivity';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { Button } from '@/shared/components/ui/button';
 import { formatDistanceToNow } from '@/modules/memory/utils/date';
 import { cn } from '@/shared/lib/utils';
 
@@ -34,6 +37,7 @@ interface WorkspaceActivityFeedProps {
 }
 
 export function WorkspaceActivityFeed({ workspaceId }: WorkspaceActivityFeedProps) {
+  const { user } = useAuth();
   const { activity, loading, error } = useWorkspaceActivity(workspaceId);
 
   if (loading) {
@@ -66,6 +70,9 @@ export function WorkspaceActivityFeed({ workspaceId }: WorkspaceActivityFeedProp
         const Icon = ACTIVITY_ICONS[item.type] ?? Activity;
         const label = ACTIVITY_LABELS[item.type] ?? 'activity';
         const isEscalation = item.type === 'question_escalated';
+        const escalationId = item.metadata?.escalationId as string | undefined;
+        const targetUserId = item.metadata?.targetUserId as string | undefined;
+        const canAnswer = isEscalation && escalationId && targetUserId === user?.id;
 
         return (
           <Card
@@ -80,9 +87,18 @@ export function WorkspaceActivityFeed({ workspaceId }: WorkspaceActivityFeedProp
                   <span className="text-muted-foreground">{label}</span>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{item.summary}</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">
-                  {formatDistanceToNow(item.createdAt)}
-                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <p className="text-xs text-muted-foreground/70">
+                    {formatDistanceToNow(item.createdAt)}
+                  </p>
+                  {canAnswer ? (
+                    <Button asChild variant="ghost" size="sm" className="h-auto px-0 text-xs text-primary">
+                      <Link to={`/answer?escalation=${encodeURIComponent(escalationId)}`}>
+                        Answer this question
+                      </Link>
+                    </Button>
+                  ) : null}
+                </div>
               </div>
             </CardContent>
           </Card>

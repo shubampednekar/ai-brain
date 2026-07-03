@@ -164,7 +164,16 @@ export class WorkspaceAskService {
       relatedTask,
     );
 
+    let draftAnswer = parsed.answer;
+
     if (escalationTargetId) {
+      draftAnswer = await this.escalations.generateDraftAnswer(
+        workspaceId,
+        escalationTargetId,
+        question,
+        parsed.answer,
+      );
+
       const [{ data: asker }, { data: target }, { data: workspace }] = await Promise.all([
         this.ctx.supabase.from('profiles').select('full_name, email').eq('id', askerUserId).single(),
         this.ctx.supabase.from('profiles').select('full_name, email').eq('id', escalationTargetId).single(),
@@ -181,7 +190,7 @@ export class WorkspaceAskService {
         askerId: askerUserId,
         targetId: escalationTargetId,
         question,
-        aiAnswer: parsed.answer,
+        aiAnswer: draftAnswer,
         confidence: parsed.confidence,
       });
 
@@ -189,7 +198,7 @@ export class WorkspaceAskService {
         workspaceName: workspace?.name ?? 'workspace',
         askerName: asker?.full_name ?? asker?.email ?? 'A teammate',
         question,
-        aiAnswer: parsed.answer,
+        aiAnswer: draftAnswer,
         confidence: parsed.confidence,
         relatedTaskTitle: relatedTask?.title,
         contextFound: sourceSummary || 'No relevant shared memories found.',

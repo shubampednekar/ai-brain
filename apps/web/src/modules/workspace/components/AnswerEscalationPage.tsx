@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Brain, CheckCircle2, Loader2, Send } from 'lucide-react';
+import { Brain, CheckCircle2, Loader2, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { apiJson } from '@/shared/lib/api';
 import { apiUrl, supabase } from '@/shared/lib/supabase';
 import { Button } from '@/shared/components/ui/button';
@@ -28,7 +28,9 @@ export function AnswerEscalationPage() {
   const [error, setError] = useState<string | null>(null);
   const [answer, setAnswer] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [hasAiDraft, setHasAiDraft] = useState(false);
 
   useEffect(() => {
     if (!escalationId) {
@@ -44,7 +46,9 @@ export function AnswerEscalationPage() {
         );
         setEscalation(data);
         if (data.status === 'open') {
-          setAnswer(`Clarification for: "${data.question}"\n\n`);
+          const fallback = `Clarification for: "${data.question}"\n\n`;
+          setHasAiDraft(Boolean(data.aiAnswer));
+          setAnswer(data.aiAnswer ?? fallback);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load question');
@@ -53,6 +57,26 @@ export function AnswerEscalationPage() {
       }
     })();
   }, [escalationId]);
+
+  const handleRegenerateDraft = async () => {
+    if (!escalationId || regenerating) return;
+
+    setRegenerating(true);
+    setError(null);
+    try {
+      const { escalation: data } = await apiJson<{ escalation: EscalationDetail }>(
+        `/escalations/${escalationId}/regenerate-draft`,
+        { method: 'POST' },
+      );
+      setEscalation(data);
+      setHasAiDraft(Boolean(data.aiAnswer));
+      if (data.aiAnswer) setAnswer(data.aiAnswer);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to regenerate draft');
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,19 +152,65 @@ export function AnswerEscalationPage() {
               <CardTitle>Answer a teammate&apos;s question</CardTitle>
               <CardDescription>
                 Workspace: {escalation.workspaceName} · Asked by {escalation.askerName}
+                {escalation.confidence != null ? (
+                  <> · AI confidence {Math.round(escalation.confidence * 100)}%</>
+                ) : null}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg bg-muted p-4 text-sm">
-                <p className="font-medium mb-1">Question</p>
-                <p>{escalation.question}</p>
-                {escalation.aiAnswer ? (
-                  <p className="text-muted-foreground mt-3 text-xs">
-                    AI tried ({escalation.confidence != null ? `${Math.round(escalation.confidence * 100)}%` : 'low'} confidence):{' '}
-                    {escalation.aiAnswer}
-                  </p>
-                ) : null}
+                <p className="font-medium mb-1 text-muted-foreground">Teammate&apos;s Question</p>
+                <p className="text-base font-semibold text-foreground">{escalation.question}</p>
               </div>
+
+              {hasAiDraft ? (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-primary font-medium">
+                      <Sparkles className="h-4 w-4 text-indigo-500" />
+                      <span>AI Co-Pilot Draft Response</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => void handleRegenerateDraft()}
+                      disabled={regenerating}
+                    >
+                      {regenerating ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                      ) : (
+                        <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                      )}
+                      Regenerate
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Based on your workspace notes and memories, the AI prepared a draft below. Edit it before submitting as a shared memory.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 text-sm">
+                  <p className="text-xs text-muted-foreground">
+                    No personalized AI draft was available. A starter template is pre-filled — edit it or use Regenerate to try again.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => void handleRegenerateDraft()}
+                    disabled={regenerating}
+                  >
+                    {regenerating ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    ) : (
+                      <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    Generate draft
+                  </Button>
+                </div>
+              )}
 
               <form onSubmit={handleSubmit} className="space-y-3">
                 <Textarea

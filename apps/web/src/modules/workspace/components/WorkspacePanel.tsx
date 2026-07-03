@@ -12,6 +12,7 @@ import {
 import { useWorkspaces } from '../hooks/useWorkspaces';
 import { WorkspaceCapture } from './WorkspaceCapture';
 import { WorkspaceMemoryFeed } from './WorkspaceMemoryFeed';
+import { EscalationInbox } from './EscalationInbox';
 import { WorkspaceAsk } from './WorkspaceAsk';
 import { WorkspaceActivityFeed } from './WorkspaceActivityFeed';
 import { WorkspaceTasks } from './WorkspaceTasks';
@@ -287,6 +288,8 @@ export function WorkspacePanel() {
               <p className="text-sm text-muted-foreground mt-1.5 italic">No description</p>
             )}
               </div>
+
+              <EscalationInbox workspaceId={selected.id} />
 
               <WorkspaceAsk workspaceId={selected.id} />
 

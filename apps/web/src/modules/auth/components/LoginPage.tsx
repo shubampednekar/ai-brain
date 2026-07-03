@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Brain, Github } from 'lucide-react';
+import { Brain } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
@@ -12,7 +12,7 @@ interface LoginPageProps {
 
 export function LoginPage({ redirect = '/' }: LoginPageProps) {
   const navigate = useNavigate();
-  const { signIn, signUp, signInWithOAuth } = useAuth();
+  const { signIn, signUp } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -79,25 +79,6 @@ export function LoginPage({ redirect = '/' }: LoginPageProps) {
               {loading ? 'Please wait...' : isSignUp ? 'Create Account' : 'Sign In'}
             </Button>
           </form>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Button variant="outline" onClick={() => signInWithOAuth('google')}>
-              Google
-            </Button>
-            <Button variant="outline" onClick={() => signInWithOAuth('github')}>
-              <Github className="h-4 w-4" />
-              GitHub
-            </Button>
-          </div>
 
           <p className="text-center text-sm text-muted-foreground">
             {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}

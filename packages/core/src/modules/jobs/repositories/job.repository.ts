@@ -16,6 +16,7 @@ export type JobType =
   | 'approval.record'
   | 'requirement.version'
   | 'question.resolve'
+  | 'shopping.extract'
   | 'digest.daily'
   | 'digest.weekly'
   | 'project.summarize';

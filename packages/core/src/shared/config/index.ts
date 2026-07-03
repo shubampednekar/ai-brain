@@ -16,6 +16,7 @@ export const AppConfigSchema = z.object({
   frontendUrl: z.string().url().optional(),
   workerSecret: z.string().optional(),
   cronSecret: z.string().optional(),
+  serperApiKey: z.string().optional(),
   featureFlags: z.array(z.string()).default([]),
 });
 
@@ -38,6 +39,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     frontendUrl: env.FRONTEND_URL,
     workerSecret: env.WORKER_SECRET,
     cronSecret: env.CRON_SECRET,
+    serperApiKey: env.SERPER_API_KEY,
     featureFlags: env.FEATURE_FLAGS?.split(',').map((f) => f.trim()).filter(Boolean) ?? [],
   });
 }

@@ -199,4 +199,58 @@ export class NotificationService {
       ].join('\n\n'),
     );
   }
+
+  async sendPreferenceDigestEmail(
+    userId: string,
+    email: string,
+    items: Array<{
+      preference: string;
+      updates: Array<{ title: string; link: string; summary: string }>;
+    }>,
+  ): Promise<void> {
+    const sections = items
+      .filter((item) => item.updates.length > 0)
+      .map((item) => {
+        const bullets = item.updates
+          .map(
+            (u) =>
+              `<li><a href="${u.link}" style="color:#6366f1;">${u.title}</a><br/><span style="color:#666;font-size:13px;">${u.summary}</span></li>`,
+          )
+          .join('');
+        return `<h3 style="margin:16px 0 8px;font-size:15px;">${item.preference}</h3><ul style="margin:0;padding-left:20px;">${bullets}</ul>`;
+      })
+      .join('');
+
+    const textSections = items
+      .filter((item) => item.updates.length > 0)
+      .map((item) => {
+        const bullets = item.updates.map((u) => `- ${u.title}: ${u.summary} (${u.link})`).join('\n');
+        return `${item.preference}\n${bullets}`;
+      })
+      .join('\n\n');
+
+    const html = `<div style="font-family:sans-serif;max-width:560px;">
+      <h2 style="margin:0 0 12px;">Your daily preference digest</h2>
+      <p style="color:#666;font-size:14px;">Here's what's new based on your saved preferences.</p>
+      ${sections}
+      <hr style="margin:24px 0;border:none;border-top:1px solid #eee;"/>
+      <p style="color:#999;font-size:12px;">Sent by AI Brain. Manage preferences in the Preferences tab.</p>
+    </div>`;
+
+    await this.sendEmail({
+      to: email,
+      subject: 'Your AI Brain preference digest',
+      html,
+      text: `Your daily preference digest\n\n${textSections}`,
+    });
+
+    await this.ctx.supabase.from('notifications').insert({
+      user_id: userId,
+      channel: 'email',
+      title: 'Your AI Brain preference digest',
+      body: textSections,
+      status: 'sent',
+      sent_at: new Date().toISOString(),
+    });
+  }
 }

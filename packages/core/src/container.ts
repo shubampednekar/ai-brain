@@ -14,6 +14,9 @@ import { TaskService } from './modules/tasks/index.js';
 import { ReminderService } from './modules/reminder/index.js';
 import { JobProcessor } from './modules/jobs/services/job-processor.service.js';
 import { JobService } from './modules/jobs/index.js';
+import { ShoppingService } from './modules/shopping/index.js';
+import { PreferenceService } from './modules/preferences/index.js';
+import { DigestService } from './modules/digest/index.js';
 
 export class AppContainer {
   readonly ctx: ServiceContext;
@@ -26,6 +29,9 @@ export class AppContainer {
   readonly activity: ActivityService;
   readonly tasks: TaskService;
   readonly reminders: ReminderService;
+  readonly shopping: ShoppingService;
+  readonly preferences: PreferenceService;
+  readonly digest: DigestService;
   readonly jobs: JobService;
   readonly jobProcessor: JobProcessor;
 
@@ -57,6 +63,9 @@ export class AppContainer {
     this.activity = new ActivityService(this.ctx);
     this.tasks = new TaskService(this.ctx);
     this.reminders = new ReminderService(this.ctx);
+    this.shopping = new ShoppingService(this.ctx);
+    this.preferences = new PreferenceService(this.ctx);
+    this.digest = new DigestService(this.ctx);
     this.jobs = new JobService(this.ctx);
     this.jobProcessor = new JobProcessor(this.ctx);
   }

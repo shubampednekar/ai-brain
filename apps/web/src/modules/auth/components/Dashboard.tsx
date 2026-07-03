@@ -1,17 +1,19 @@
-import { Brain, LogOut, Search, Sparkles, Users, ListTodo, Bell, Share2 } from 'lucide-react';
+import { Brain, LogOut, Search, Sparkles, Users, ListTodo, Bell, Share2, Heart, ShoppingCart } from 'lucide-react';
 import { useAuth } from '@/modules/auth/components/AuthProvider';
 import { CapturePanel } from '@/modules/memory/components/CapturePanel';
 import { SearchPanel } from '@/modules/search/components/SearchPanel';
 import { WorkspacePanel } from '@/modules/workspace/components/WorkspacePanel';
 import { TasksPanel } from '@/modules/tasks/components/TasksPanel';
 import { RemindersPanel } from '@/modules/reminders/components/RemindersPanel';
+import { PreferencesPanel } from '@/modules/preferences/components/PreferencesPanel';
+import { ShoppingPanel } from '@/modules/shopping/components/ShoppingPanel';
 import { GraphPanel } from '@/modules/search/components/GraphPanel';
 import { EscalationInbox } from '@/modules/workspace/components/EscalationInbox';
 import { Button } from '@/shared/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/shared/components/ui/avatar';
 import { useState } from 'react';
 
-type Tab = 'capture' | 'search' | 'graph' | 'tasks' | 'reminders' | 'shared';
+type Tab = 'capture' | 'search' | 'graph' | 'tasks' | 'reminders' | 'preferences' | 'shopping' | 'shared';
 
 export function Dashboard() {
   const { user, signOut } = useAuth();
@@ -86,6 +88,22 @@ export function Dashboard() {
             Reminders
           </Button>
           <Button
+            variant={tab === 'preferences' ? 'default' : 'ghost'}
+            className="flex-1 min-w-[5.5rem]"
+            onClick={() => setTab('preferences')}
+          >
+            <Heart className="h-4 w-4 mr-2" />
+            Preferences
+          </Button>
+          <Button
+            variant={tab === 'shopping' ? 'default' : 'ghost'}
+            className="flex-1 min-w-[5.5rem]"
+            onClick={() => setTab('shopping')}
+          >
+            <ShoppingCart className="h-4 w-4 mr-2" />
+            Shopping
+          </Button>
+          <Button
             variant={tab === 'shared' ? 'default' : 'ghost'}
             className="flex-1 min-w-[5.5rem]"
             onClick={() => setTab('shared')}
@@ -104,6 +122,10 @@ export function Dashboard() {
         {tab === 'tasks' && <TasksPanel />}
 
         {tab === 'reminders' && <RemindersPanel />}
+
+        {tab === 'preferences' && <PreferencesPanel />}
+
+        {tab === 'shopping' && <ShoppingPanel />}
 
         {tab === 'shared' && <WorkspacePanel />}
       </main>

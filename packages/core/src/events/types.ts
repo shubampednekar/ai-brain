@@ -35,6 +35,9 @@ export const EVENT_TYPES = {
   JOB_FAILED: 'job.failed',
 
   NOTIFICATION_SENT: 'notification.sent',
+
+  SHOPPING_EXTRACTED: 'shopping.extracted',
+  DIGEST_SENT: 'digest.sent',
 } as const;
 
 export type EventType = (typeof EVENT_TYPES)[keyof typeof EVENT_TYPES];

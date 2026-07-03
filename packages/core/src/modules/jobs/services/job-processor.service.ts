@@ -99,6 +99,22 @@ export class JobProcessor {
           );
           break;
         }
+        case 'shopping.extract': {
+          const { ShoppingService } = await import('../../shopping/services/shopping.service.js');
+          const svc = new ShoppingService(this.ctx);
+          await svc.extractFromMemory(
+            job.payload.memoryId as string,
+            job.payload.text as string,
+            job.payload.userId as string,
+          );
+          break;
+        }
+        case 'digest.daily': {
+          const { DigestService } = await import('../../digest/services/digest.service.js');
+          const svc = new DigestService(this.ctx);
+          await svc.runDaily();
+          break;
+        }
         case 'reminder.send': {
           const svc = new ReminderService(this.ctx);
           const { NotificationService } = await import(

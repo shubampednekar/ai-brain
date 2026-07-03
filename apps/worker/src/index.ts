@@ -23,8 +23,20 @@ async function main() {
     }
   };
 
+  const processDailyDigest = async () => {
+    try {
+      await container.jobs.enqueue('digest.daily', {}, {
+        idempotencyKey: `digest.daily:${new Date().toISOString().slice(0, 13)}`,
+      });
+    } catch {
+      // idempotency - already scheduled
+    }
+  };
+
   setInterval(processReminders, 60_000);
+  setInterval(processDailyDigest, 60 * 60_000);
   await processReminders();
+  await processDailyDigest();
 
   const poll = async () => {
     try {

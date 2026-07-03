@@ -22,4 +22,8 @@ export * from './modules/conversation/index.js';
 export * from './modules/workspace-ask/index.js';
 export * from './modules/escalation/index.js';
 export * from './modules/activity/index.js';
+export * from './modules/shopping/index.js';
+export * from './modules/preferences/index.js';
+export * from './modules/digest/index.js';
+export * from './modules/research-agent/index.js';
 export * from './modules/jobs/services/job-processor.service.js';

@@ -453,6 +453,97 @@ app.get('/graph', authMiddleware, async (req: AuthenticatedRequest, res) => {
   }
 });
 
+app.get('/shopping/items', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const items = await container.shopping.listItems(req.userId!);
+    res.json({ items });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.patch('/shopping/items/:id', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const itemId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!itemId) {
+      res.status(400).json({ error: 'Item ID is required' });
+      return;
+    }
+
+    const { isPurchased } = req.body as { isPurchased?: boolean };
+    const item = await container.shopping.updateItem(itemId, req.userId!, { isPurchased });
+    res.json({ item });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.delete('/shopping/items/:id', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const itemId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    if (!itemId) {
+      res.status(400).json({ error: 'Item ID is required' });
+      return;
+    }
+
+    await container.shopping.deleteItem(itemId, req.userId!);
+    res.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.get('/preferences', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const [memories, settings, latestDigest] = await Promise.all([
+      container.preferences.listMemories(req.userId!),
+      container.preferences.getSettings(req.userId!),
+      container.preferences.getLatestDigest(req.userId!),
+    ]);
+    res.json({ memories, settings, latestDigest });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.patch('/preferences/settings', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { digestEnabled, digestHour } = req.body as {
+      digestEnabled?: boolean;
+      digestHour?: number;
+    };
+    const settings = await container.preferences.updateSettings(req.userId!, {
+      digestEnabled,
+      digestHour,
+    });
+    res.json({ settings });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
+app.post('/preferences/research', authMiddleware, async (req: AuthenticatedRequest, res) => {
+  try {
+    const { data: profile } = await container.ctx.supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', req.userId!)
+      .single();
+
+    const sent = await container.digest.runForUser(req.userId!, profile?.email, { force: true });
+    const latestDigest = await container.preferences.getLatestDigest(req.userId!);
+    res.json({ sent, latestDigest });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Internal error';
+    res.status(500).json({ error: message });
+  }
+});
+
 app.get('/workspaces/:id/graph', authMiddleware, async (req: AuthenticatedRequest, res) => {
   try {
     const workspaceId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;

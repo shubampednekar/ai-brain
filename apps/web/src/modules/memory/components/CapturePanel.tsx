@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/sha
 const TIPS = [
   'Type naturally — no folders or tags needed.',
   'Press ⌘+Enter (Ctrl+Enter) to capture quickly.',
-  'AI detects intent: reminders, tasks, preferences, and more.',
+  'AI detects intent: reminders, tasks, shopping lists, preferences, and more.',
 ];
 
 export function CapturePanel() {

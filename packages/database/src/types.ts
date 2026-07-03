@@ -219,6 +219,78 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['reminders']['Insert']>;
         Relationships: [];
       };
+      shopping_lists: {
+        Row: {
+          id: string;
+          user_id: string;
+          memory_id: string | null;
+          name: string;
+          status: 'active' | 'completed';
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          memory_id?: string | null;
+          name?: string;
+          status?: 'active' | 'completed';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['shopping_lists']['Insert']>;
+        Relationships: [];
+      };
+      shopping_items: {
+        Row: {
+          id: string;
+          list_id: string;
+          memory_id: string | null;
+          title: string;
+          quantity: string | null;
+          store: string | null;
+          is_purchased: boolean;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          list_id: string;
+          memory_id?: string | null;
+          title: string;
+          quantity?: string | null;
+          store?: string | null;
+          is_purchased?: boolean;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['shopping_items']['Insert']>;
+        Relationships: [];
+      };
+      preference_digest_runs: {
+        Row: {
+          id: string;
+          user_id: string;
+          run_date: string;
+          preferences_snapshot: Json;
+          research_results: Json;
+          email_sent_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          run_date: string;
+          preferences_snapshot?: Json;
+          research_results?: Json;
+          email_sent_at?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['preference_digest_runs']['Insert']>;
+        Relationships: [];
+      };
       tasks: {
         Row: {
           id: string;

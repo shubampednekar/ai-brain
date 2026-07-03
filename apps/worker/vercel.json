@@ -9,6 +9,7 @@
   "routes": [
     { "src": "/api/process-jobs", "dest": "/api/process-jobs.ts" },
     { "src": "/api/send-reminders", "dest": "/api/send-reminders.ts" },
+    { "src": "/api/send-daily-digest", "dest": "/api/send-daily-digest.ts" },
     { "src": "/api/health", "dest": "/api/health.ts" }
   ]
 }

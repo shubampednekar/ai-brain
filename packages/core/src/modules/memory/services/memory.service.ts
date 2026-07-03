@@ -113,6 +113,14 @@ export class MemoryService {
       });
     }
 
+    if (classification.intent === 'shopping') {
+      await this.jobService.enqueue('shopping.extract', {
+        memoryId: memory.id,
+        text: input.text,
+        userId: input.userId,
+      });
+    }
+
     return memory;
   }
 
